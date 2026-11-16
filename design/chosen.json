@@ -1,0 +1,10 @@
+{
+  "note": "Current lion design (round 4: round-2 option 2 colours + E1 face + H1 bigger head + H3 big ears). Pass to tools/procedural_lion.py.",
+  "curl_style": "poofy",
+  "curl_count": 200,
+  "mane": "#76301A",
+  "mane_tip": "#A44F27",
+  "fur": "#C77A22",
+  "head_scale": 1.15,
+  "ear_scale": 1.45
+}

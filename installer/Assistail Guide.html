@@ -1,0 +1,308 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistail Guide</title>
+<style>
+  :root {
+    --bg: #faf9f5; --surface: #ffffff; --text: #1f1e1d; --muted: #6b6862; --border: #e6e3da;
+    --accent: #c4613f; --accent-soft: #f6e6df; --code-bg: #f1efe8; --warn-bg: #fff6e0; --warn-border: #e9c46a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1f1e1d; --surface: #262624; --text: #ecebe6; --muted: #a29e96; --border: #3a3936;
+      --accent: #e08a6a; --accent-soft: #3a2a23; --code-bg: #30302e; --warn-bg: #3a3222; --warn-border: #8a7230;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  header svg { flex: none; }
+  h1 { font-size: 2rem; margin: 0; letter-spacing: -0.01em; }
+  .tagline { color: var(--muted); margin: 0 0 24px; font-size: 1.05rem; }
+  h2 { font-size: 1.35rem; margin: 44px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  a { color: var(--accent); }
+  code, kbd { font-family: "Cascadia Code", Consolas, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; word-break: break-all; }
+  kbd { background: var(--surface); border: 1px solid var(--border); border-bottom-width: 2px;
+        border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+  nav { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; }
+  nav ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  @media (max-width: 560px) { nav ol { columns: 1; } }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .card b { display: block; margin-bottom: 4px; }
+  .card span { color: var(--muted); font-size: 0.95rem; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; background: var(--surface);
+          border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; font-size: 0.78rem; font-weight: 600; padding: 1px 8px; border-radius: 99px;
+         background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .tag.opt { background: var(--code-bg); color: var(--muted); }
+  ol.steps { padding-left: 22px; }
+  ol.steps li { margin-bottom: 8px; }
+  .note { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px; padding: 10px 14px; margin: 14px 0; }
+  .muted { color: var(--muted); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <svg width="44" height="44" viewBox="0 0 100 100" aria-hidden="true">
+    <g stroke="#D97757" stroke-width="11" stroke-linecap="round">
+      <line x1="50" y1="50" x2="58" y2="8"/><line x1="50" y1="50" x2="78" y2="22"/>
+      <line x1="50" y1="50" x2="92" y2="44"/><line x1="50" y1="50" x2="80" y2="72"/>
+      <line x1="50" y1="50" x2="60" y2="92"/><line x1="50" y1="50" x2="34" y2="86"/>
+      <line x1="50" y1="50" x2="12" y2="70"/><line x1="50" y1="50" x2="9" y2="44"/>
+      <line x1="50" y1="50" x2="22" y2="18"/><line x1="50" y1="50" x2="38" y2="12"/>
+    </g>
+    <circle cx="50" cy="50" r="12" fill="#D97757"/>
+  </svg>
+  <h1>Assistail</h1>
+</header>
+<p class="tagline">A curly-maned lion who sits on your taskbar with Claude inside. Quick chat from anywhere, and Claude Code in any folder with a right-click.</p>
+
+<div class="cards">
+  <div class="card"><b>🦁 Your lion buddy</b><span>Sits on your taskbar. Click him to chat; right-click for options. You choose his name.</span></div>
+  <div class="card"><b>Quick chat</b><span>Click the lion, or press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> in any app.</span></div>
+  <div class="card"><b>Claude Code here</b><span>Right-click in a folder → <em>Open Claude Code here</em>.</span></div>
+</div>
+
+<nav>
+  <ol>
+    <li><a href="#requirements">Requirements</a></li>
+    <li><a href="#install">Installing</a></li>
+    <li><a href="#lion">Your lion buddy</a></li>
+    <li><a href="#chat">Quick chat</a></li>
+    <li><a href="#rightclick">Right-click menu</a></li>
+    <li><a href="#tray">Tray icon menu</a></li>
+    <li><a href="#upgrade">Upgrading</a></li>
+    <li><a href="#uninstall">Uninstalling</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#privacy">Privacy &amp; what it changes</a></li>
+  </ol>
+</nav>
+
+<!-- ================================================================== -->
+<h2 id="requirements">1. Requirements</h2>
+<table>
+  <tr><th>What</th><th></th><th>Details</th></tr>
+  <tr><td>Windows 10 or 11, 64-bit</td><td><span class="tag">Required</span></td>
+      <td>Built and tested on Windows 11. Windows on ARM should work through Windows 11's built-in emulation, but hasn't been tested.</td></tr>
+  <tr><td>Claude Code CLI</td><td><span class="tag">Required</span></td>
+      <td>Quick chat and “Open Claude Code here” both run the <code>claude</code> command.
+          Install it from <a href="https://claude.com/claude-code">claude.com/claude-code</a>, then open a terminal,
+          run <code>claude</code> once and sign in.</td></tr>
+  <tr><td>A Claude account with Claude Code access</td><td><span class="tag">Required</span></td>
+      <td>A paid Claude plan or an Anthropic Console (API) account, the same one you use with Claude Code.
+          Quick chat counts against that account's usage limits. No separate API key is needed.</td></tr>
+  <tr><td>Internet connection</td><td><span class="tag">Required</span></td><td>Needed to talk to Claude.</td></tr>
+  <tr><td>Windows Terminal</td><td><span class="tag opt">Optional</span></td>
+      <td>Claude Code opens in Windows Terminal if it's installed (it comes with Windows 11), otherwise in Command Prompt.</td></tr>
+  <tr><td>.NET</td><td><span class="tag opt">Not needed</span></td><td>Bundled inside the app.</td></tr>
+  <tr><td>Admin rights</td><td><span class="tag opt">Not needed</span></td><td>Installs for your user account only.</td></tr>
+</table>
+<p class="muted">Resources: about 190 MB of disk space. About 90–150 MB of memory with the lion on screen, a little more while the chat is open.
+   CPU: about 1% of one processor core while he's active, about 0.7% when he's been left alone for 30 seconds (he animates more gently), and <strong>zero while the PC is locked or the screen is off</strong> (he pauses). Short bursts when he switches animations or you send a chat message.</p>
+
+<!-- ================================================================== -->
+<h2 id="install">2. Installing</h2>
+<ol class="steps">
+  <li>Copy <code>Assistail-2.0.0.zip</code> to the laptop and <strong>unzip it</strong>: right-click → <em>Extract All…</em>.
+      Don't run the installer from inside the zip.</li>
+  <li>Open the extracted folder and double-click <strong>Install.cmd</strong>.</li>
+  <li>If Windows shows <em>“Windows protected your PC”</em>, click <strong>More info</strong> → <strong>Run anyway</strong>.
+      This appears because the app isn't code-signed by a publisher, which is normal for a personal tool.</li>
+  <li>Answer <kbd>y</kbd> or <kbd>n</kbd> when asked whether to start Assistail when you sign in.
+      You can change this later from the tray menu.</li>
+  <li>Assistail starts: the lion appears on your taskbar and asks <em>“What would you like to call me?”</em>.
+      Type a name (or click <em>Later</em> to keep “Leo”). The orange spark also appears in the system tray.</li>
+</ol>
+<div class="note"><strong>Tip:</strong> to keep the spark always visible, drag it from the <strong>^</strong> overflow area onto the taskbar.</div>
+<p>The installer puts the app in <code>%LOCALAPPDATA%\Programs\Assistail</code>, adds a Start menu entry
+   (search for “Assistail”), and lists it in <em>Settings → Apps</em>. If the Claude Code CLI isn't found,
+   the installer shows a warning.</p>
+
+<!-- ================================================================== -->
+<h2 id="lion">3. Your lion buddy</h2>
+<p>A cartoon lion with a curly mane sits on top of your taskbar, paws on its edge. He's your shortcut to everything.
+   In this guide he's called “your lion”. On your PC he has the name you gave him.</p>
+<table>
+  <tr><th>To…</th><th>Do this</th></tr>
+  <tr><td>Chat</td><td><strong>Click</strong> the lion. The chat opens beside him, on whichever side has more room. Click him again to hide it.</td></tr>
+  <tr><td>See all options</td><td><strong>Right-click</strong> the lion (the same menu as the tray icon)</td></tr>
+  <tr><td>Move him</td><td><strong>Drag</strong> him left or right along the taskbar. He remembers the spot.</td></tr>
+  <tr><td>Send him away</td><td>Right-click → <em>Send … away</em>, or type <code>go away</code> / <code>bye</code> in the chat. He turns, stands up and walks off.</td></tr>
+  <tr><td>Call him back</td><td>Right-click the tray icon → <em>Call … back</em>, or type <code>come back</code> in the chat. He walks back to his spot.</td></tr>
+  <tr><td>Rename him</td><td>Right-click → <em>Rename …</em>. The new name shows up everywhere right away.</td></tr>
+  <tr><td>Make him bigger or smaller</td><td>Right-click → <em>…'s size</em> → Small / Medium / Large</td></tr>
+</table>
+<h3>Tricks (right-click → Tricks)</h3>
+<table>
+  <tr><th>Trick</th><th>What he does</th></tr>
+  <tr><td>Shake head</td><td>A quick “nope” shake, mane bouncing</td></tr>
+  <tr><td>Jump</td><td>Big excited jump with a spin</td></tr>
+  <tr><td>Stretch &amp; yawn</td><td>Stretches his paws out and yawns</td></tr>
+  <tr><td>Chase his tail</td><td>Spins after his tail, then a dizzy wobble</td></tr>
+  <tr><td>Wave</td><td>Waves a paw at you (he also waves when the chat opens)</td></tr>
+  <tr><td>Look around &amp; roar</td><td>Looks left and right, then a tiny roar</td></tr>
+  <tr><td>Walk around</td><td>Strolls along the taskbar to a new spot and sits</td></tr>
+  <tr><td>Chase my pointer</td><td>Follows your mouse along the taskbar for about 10 seconds (click him to stop)</td></tr>
+  <tr><td>Play with a butterfly</td><td>A butterfly flutters in; he watches it, swats at it and hops as it flies away</td></tr>
+</table>
+<p><strong>Trick shortcut:</strong> press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd> anywhere. Each press does the next trick in the list above,
+   then starts over. Choosing a new trick while one is still going interrupts it.</p>
+<p><strong>Make him say something:</strong> right-click → <em>Make … say something…</em>, type a message, and it appears in a speech bubble above him. Click the bubble to dismiss it.</p>
+
+<h3>What he does on his own</h3>
+<ul>
+  <li><strong>Random quirks:</strong> every 1–3 minutes when you're not using him, he does one of the tricks above, or says a short line in a speech bubble.
+      Change how often under right-click → <em>Quirks when idle</em> (Often / Sometimes / Rarely / Off), and turn the talking on or off with <em>Talks on his own</em>.</li>
+  <li><strong>Idle:</strong> breathes, blinks, swishes his tail, twitches an ear.</li>
+  <li><strong>Mouse comes near:</strong> perks up.</li>
+  <li><strong>While Claude answers:</strong> thinks (head tilted), nods along as the answer streams in, then does a little happy hop.</li>
+  <li><strong>Picked up:</strong> legs dangle; plops down where you drop him.</li>
+  <li><strong>Unused for 10 minutes:</strong> naps. Move the mouse over him to wake him.</li>
+  <li><strong>Full-screen video, game or slideshow:</strong> hides, and comes back afterwards.</li>
+</ul>
+<p class="muted">He asks Claude to answer as him, so asking “what's your name?” in the chat gets his name back.</p>
+
+<!-- ================================================================== -->
+<h2 id="chat">4. Quick chat</h2>
+<p>Click the lion, press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> anywhere, or left-click the tray icon. The chat opens next to
+   the lion (or in the middle of the screen if he's away). Type a question and the reply streams in.</p>
+
+<table>
+  <tr><th>Action</th><th>How</th></tr>
+  <tr><td>Send a message</td><td><kbd>Enter</kbd></td></tr>
+  <tr><td>New line in your message</td><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td></tr>
+  <tr><td>Hide the chat (conversation is kept)</td><td><kbd>Esc</kbd>, the ✕ button, or the hotkey again</td></tr>
+  <tr><td>Stop a reply that's still coming in</td><td>Click the ■ button (it replaces ↑ while Claude is answering)</td></tr>
+  <tr><td>Start a fresh conversation</td><td><strong>New chat</strong> button</td></tr>
+  <tr><td>Open Claude Code in the shown folder</td><td><strong>&gt;_ Claude Code</strong> button</td></tr>
+  <tr><td>Copy part of a reply</td><td>Select the text with the mouse, then <kbd>Ctrl</kbd>+<kbd>C</kbd></td></tr>
+  <tr><td>Move / resize</td><td>Drag the header bar / drag the bottom-right corner</td></tr>
+</table>
+
+<h3>Folder awareness</h3>
+<p>If you press the hotkey while a File Explorer window is in front, the chat header shows that folder (📁).
+   The <strong>&gt;_ Claude Code</strong> button then opens Claude Code right in that folder. On the desktop, it uses your
+   Desktop folder. Otherwise it uses the last Explorer folder you were in, or your home folder.</p>
+
+<h3>Good to know</h3>
+<ul>
+  <li><strong>Quick chat can't touch your files or run commands.</strong> Tools are turned off on purpose, so it only answers questions.
+      For real work in a project, use <strong>&gt;_ Claude Code</strong>.</li>
+  <li><strong>The first reply takes a few seconds</strong> because each message starts Claude Code in the background.
+      For faster answers, choose <em>Haiku (fastest)</em> under <em>Chat model</em> in the tray menu.</li>
+  <li>Follow-up questions remember the conversation until you click <strong>New chat</strong> or quit the app.</li>
+  <li>Replies are shown as plain text.</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="rightclick">5. Right-click menu: “Open Claude Code here”</h2>
+<p>In File Explorer, right-click any of these and choose <strong>Open Claude Code here</strong>:</p>
+<ul>
+  <li>empty space inside a folder (opens in that folder)</li>
+  <li>a folder (opens in that folder)</li>
+  <li>a drive, such as <code>C:</code> or a USB drive</li>
+</ul>
+<p>A terminal opens with Claude Code already running in that location.</p>
+<div class="note"><strong>Windows 11:</strong> the item is in the full menu. Click <strong>Show more options</strong>,
+   or hold <kbd>Shift</kbd> while right-clicking to go straight there.</div>
+<p class="muted">The right-click menu works even when the tray app isn't running.</p>
+
+<!-- ================================================================== -->
+<h2 id="tray">6. Menu (tray icon or right-click the lion)</h2>
+<p><strong>Right-click the lion</strong> or <strong>right-click the orange spark</strong> in the system tray (left-click the spark opens the chat).
+   Items show your lion's name. “Leo” is used here as an example:</p>
+<table>
+  <tr><th>Item</th><th>What it does</th></tr>
+  <tr><td>Chat with Leo</td><td>Opens the chat. The hotkey is shown next to it.</td></tr>
+  <tr><td>Open Claude Code in “<em>folder</em>”</td><td>Opens Claude Code in the last File Explorer folder you used (or your home folder).</td></tr>
+  <tr><td>Open Claude Code in folder…</td><td>Pick any folder, then Claude Code opens there.</td></tr>
+  <tr><td>Send Leo away / Call Leo back</td><td>He walks off the taskbar, or walks back to his spot.</td></tr>
+  <tr><td>Rename Leo…</td><td>Give him a new name.</td></tr>
+  <tr><td>Tricks ▸</td><td><em>Next trick</em> (with its shortcut) or pick any trick for him to do right now.</td></tr>
+  <tr><td>Make Leo say something…</td><td>Type a message for his speech bubble.</td></tr>
+  <tr><td>Leo's size</td><td>Small, Medium or Large.</td></tr>
+  <tr><td>Quirks when idle ▸</td><td>How often he does random quirks (Often / Sometimes / Rarely / Off), and whether he talks on his own.</td></tr>
+  <tr><td>Chat model</td><td><em>Default</em> (Claude Code's default), <em>Haiku</em> (fastest), <em>Sonnet</em>, or <em>Opus</em> (smartest). Only affects quick chat.</td></tr>
+  <tr><td>Shortcuts…</td><td>Change the keyboard shortcuts for <em>Chat</em> (default <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd>) and <em>Next trick</em> (default <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>): click a box and press the keys you want, or turn a shortcut off. If another app already uses a combination, you are told so.</td></tr>
+  <tr><td>Start with Windows</td><td>Tick to launch Assistail automatically when you sign in.</td></tr>
+  <tr><td>Help &amp; user guide</td><td>Opens this page.</td></tr>
+  <tr><td>Quit Assistail</td><td>Closes the app. Restart it from the Start menu.</td></tr>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="upgrade">7. Upgrading</h2>
+<p>Unzip the new version and double-click its <strong>Install.cmd</strong>. It closes the running copy, replaces it,
+   and keeps your settings (chat model, start with Windows).</p>
+
+<!-- ================================================================== -->
+<h2 id="uninstall">8. Uninstalling</h2>
+<p><strong>Settings → Apps → Installed apps → Assistail → Uninstall</strong>.
+   Or run <code>Uninstall.cmd</code> in <code>%LOCALAPPDATA%\Programs\Assistail</code>.</p>
+<p>This removes the app, the right-click menu item, the Start menu entry, the startup entry, and Assistail's settings
+   and log. Claude Code itself is not touched.</p>
+
+<!-- ================================================================== -->
+<h2 id="troubleshooting">9. Troubleshooting</h2>
+<table>
+  <tr><th>Problem</th><th>Try this</th></tr>
+  <tr><td>The hotkey does nothing</td>
+      <td>Another app may already use <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd>. Assistail then falls back to
+          <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>.
+          Right-click the lion: the active shortcut is shown next to <em>Chat with …</em>. To pick a different combination, use right-click → <em>Shortcuts…</em>.</td></tr>
+  <tr><td>Chat says “Couldn't start Claude Code” or shows an error</td>
+      <td>Open a terminal and run <code>claude</code>. If it isn't found, install the Claude Code CLI. If it asks you to sign in, do so.
+          Then quit Assistail and start it again.</td></tr>
+  <tr><td>Chat replies are slow</td>
+      <td>A few seconds per message is normal. Choose <em>Chat model → Haiku (fastest)</em> for quicker answers.</td></tr>
+  <tr><td>“Open Claude Code here” isn't in the right-click menu</td>
+      <td>On Windows 11, look under <em>Show more options</em>. If it's still missing, run <strong>Install.cmd</strong> again.</td></tr>
+  <tr><td>The right-click icon looks blank</td>
+      <td>Windows caches icons. Close and reopen File Explorer, or sign out and back in.</td></tr>
+  <tr><td>The lion isn't on the taskbar</td>
+      <td>He may have been sent away: right-click the tray spark → <em>Call … back</em>. He also hides while a full-screen app is in front.</td></tr>
+  <tr><td>The spark isn't in the tray</td>
+      <td>Check the <strong>^</strong> overflow area. If it isn't there, start <em>Assistail</em> from the Start menu.</td></tr>
+  <tr><td>The app won't start on a work laptop</td>
+      <td>Your organization may block apps that aren't code-signed. Ask IT, or use a personal laptop.</td></tr>
+  <tr><td>Anything else</td>
+      <td>Check the log file at <code>%LOCALAPPDATA%\Assistail\log.txt</code>.</td></tr>
+</table>
+
+<!-- ================================================================== -->
+<h2 id="privacy">10. Privacy &amp; what it changes on your PC</h2>
+<h3>Your messages</h3>
+<p>Quick chat sends your messages through the Claude Code CLI to Claude, using your own signed-in account, exactly as if
+   you had typed them into Claude Code. Assistail has no servers of its own and sends nothing anywhere else.
+   Like any Claude Code session, the conversation history is saved by Claude Code under
+   <code>%USERPROFILE%\.claude\projects</code>.</p>
+
+<h3>What gets installed</h3>
+<p>Assistail is an ordinary app. It doesn't modify Windows, install drivers or services, or need admin rights. Everything is per-user:</p>
+<table>
+  <tr><th>Location</th><th>Purpose</th></tr>
+  <tr><td><code>%LOCALAPPDATA%\Programs\Assistail</code></td><td>The app, icon, this guide, uninstaller</td></tr>
+  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings and log file</td></tr>
+  <tr><td><code>HKCU\Software\Classes\Directory\…\shell\ClaudeCodeHere</code><br><code>HKCU\Software\Classes\Drive\shell\ClaudeCodeHere</code></td><td>Right-click menu item</td></tr>
+  <tr><td><code>HKCU\…\CurrentVersion\Uninstall\Assistail</code></td><td>Entry in Settings → Apps</td></tr>
+  <tr><td><code>HKCU\…\CurrentVersion\Run</code> → <code>Assistail</code></td><td>Start with Windows (only if enabled)</td></tr>
+  <tr><td>Start menu → <em>Assistail</em></td><td>Shortcut</td></tr>
+</table>
+<p>Windows updates won't break it, because it only uses standard, long-supported Windows features. Uninstalling removes everything in the table above.</p>
+
+<footer>Assistail 1.3.1 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
+</div>
+</body>
+</html>

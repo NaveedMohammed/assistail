@@ -1,0 +1,27 @@
+<Window x:Class="Assistail.NameDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Name your buddy" Width="340" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False"
+        Icon="pack://application:,,,/assistail.ico" FontFamily="Segoe UI" FontSize="14">
+    <Border Margin="12" CornerRadius="14" Background="#262624" BorderBrush="#3D3C38" BorderThickness="1" Padding="18,16">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.45"/>
+        </Border.Effect>
+        <StackPanel>
+            <TextBlock x:Name="Heading" Text="Hi! What would you like to call me?" Foreground="#EDEBE6" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap"/>
+            <TextBlock x:Name="Sub" Text="This will be my name from now on. You can change it any time." Foreground="#9B978F" FontSize="12.5" Margin="0,4,0,12" TextWrapping="Wrap"/>
+            <Border Background="#30302E" CornerRadius="8" BorderBrush="#45443F" BorderThickness="1" Padding="8,5">
+                <TextBox x:Name="NameBox" MaxLength="24" Background="Transparent" BorderThickness="0"
+                         Foreground="#EDEBE6" CaretBrush="#EDEBE6" FontSize="15"/>
+            </Border>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                <Button x:Name="CancelButton" Content="Later" Padding="14,5" Margin="0,0,8,0" Click="Cancel_Click"
+                        Background="#33322F" Foreground="#C9C6BF" BorderThickness="0" Cursor="Hand"/>
+                <Button x:Name="OkButton" Content="Save name" Padding="14,5" Click="Ok_Click" IsDefault="True"
+                        Background="#D97757" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

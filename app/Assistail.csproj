@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Assistail</AssemblyName>
+    <Version>2.0.0</Version>
+    <Product>Assistail</Product>
+    <RootNamespace>Assistail</RootNamespace>
+    <ApplicationIcon>..\assets\assistail.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Lower idle memory for a tray app: no background GC thread, release memory back to Windows sooner. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="..\assets\assistail.ico" Link="assistail.ico" />
+    <Resource Include="..\assets\lion\**\*" LinkBase="lion" />
+  </ItemGroup>
+</Project>

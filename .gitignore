@@ -1,0 +1,21 @@
+# Build output
+app/bin/
+app/obj/
+dist/
+release/
+*.user
+.vs/
+
+# Local design work: review galleries (contain third-party model thumbnails) and raw renders.
+# The approved look and the embedded frames (assets/lion) are committed.
+design/*
+!design/chosen.json
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Python bytecode (embeds local file paths)
+__pycache__/
+*.pyc
