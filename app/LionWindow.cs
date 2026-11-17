@@ -78,7 +78,12 @@ namespace Assistail
         public DateTime LastActivity { get; private set; } = DateTime.Now;
         public bool IsAway => _mode is Mode.Away or Mode.Leaving;
         /// <summary>Set by the app while the chat window is open: no random quirks then.</summary>
-        public bool ChatOpen { get; set; }
+        public bool ChatOpen
+        {
+            get => _chatOpen;
+            set { _chatOpen = value; if (!value) ScheduleNextQuirk(); }   // no quirk right after the chat closes
+        }
+        private bool _chatOpen;
 
         public event Action? Clicked;
         public event Action? MenuRequested;
@@ -236,6 +241,8 @@ namespace Assistail
             _surface.Show();
             _clock.Start();
             _settings.LionVisible = true;
+            ScheduleNextQuirk();                  // a full quirk interval after arriving, not straight away
+            Touch();
             _settings.Save();
         }
 
@@ -256,7 +263,13 @@ namespace Assistail
         // ================================================================== animation core
 
         private bool CanReact => _mode == Mode.Sitting && !_dragging;
-        private void Touch() => LastActivity = DateTime.Now;
+        /// <summary>Any interaction: resets the idle timers and keeps random quirks at least 30 s away.</summary>
+        private void Touch()
+        {
+            LastActivity = DateTime.Now;
+            var soonest = DateTime.Now.AddSeconds(30);
+            if (_nextQuirk < soonest) _nextQuirk = soonest;
+        }
         private double WalkSpeedPx => WalkDipPerSecM * (_sizeDip / 190.0) * _ground.Scale;
 
         private void Play(string state, Action? onDone = null, bool reverse = false)
@@ -801,9 +814,39 @@ namespace Assistail
                 Play("hover", () => Play("idle"));
         }
 
+        private void StopTrickForClick()
+        {
+            App.Log($"Click interrupts {_mode}");
+            switch (_mode)
+            {
+                case Mode.Playing:                       // butterfly flies off, he settles
+                    _butterfly.Hide();
+                    _mode = Mode.Sitting;
+                    Play("idle");
+                    break;
+                case Mode.Chasing:
+                    if (_walking) EndChase();            // sits down (the chat opens meanwhile)
+                    else _pendingTrick = "__sit";       // still standing up: sit back down instead of walking
+                    break;
+                case Mode.Strolling:
+                    if (_walking) { SaveSpot(); SitDown(); }
+                    else _pendingTrick = "__sit";
+                    break;
+                // Arriving: let him finish walking in; the chat opens next to him.
+            }
+        }
+
         private void OnMouseDown()
         {
-            if (_mode == Mode.Chasing) { EndChase(); return; }   // clicking him ends the chase
+            // A click always wins: stop whatever trick is running and open the chat.
+            if (_mode is Mode.Playing or Mode.Strolling or Mode.Chasing or Mode.Arriving)
+            {
+                Touch();
+                _pendingTrick = null;
+                StopTrickForClick();
+                Clicked?.Invoke();
+                return;
+            }
             if (_mode != Mode.Sitting) return;
             Native.GetCursorPos(out var p);
             _mouseDown = true;
