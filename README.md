@@ -26,6 +26,7 @@ A bright-eyed, bushy-tailed coding partner that lives on your Windows taskbar an
 - 🗨️ **Speech bubble**: make him say anything, or let him chat a little on his own.
 - 📂 **"Open Claude Code here"**: in the Explorer right-click menu, the buddy's menu and the chat window.
 - 🧭 **Ask him to open folders**: type `open claude in my-app`, `open claude in the folder in D drive named reports` or `switch to downloads`. He finds the folder (with clickable choices if there are several) and opens Claude Code there.
+- 📂 **Ask about a folder's files**: after `switch to my-app`, ask "what does this project do?". The chat can read (never change) files in its folder.
 - ⌨️ **Shortcuts**: `Ctrl+Alt+Space` to chat, `Ctrl+Alt+T` for the next trick. Both can be changed in the app.
 - 🔋 **Light on battery**: about 1% of one CPU core when active, less when idle, and zero while the PC is locked or the screen is off.
 

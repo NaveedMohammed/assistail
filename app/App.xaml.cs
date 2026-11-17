@@ -18,9 +18,32 @@ namespace Assistail
         public static string DataDir { get; } =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Assistail");
 
+        /// <summary>
+        /// If Assistail was started from inside a Claude Code session (e.g. a terminal Claude opened), it inherits that
+        /// session's marker variables and would pass them on to every `claude` it starts. The terminal from "Open Claude
+        /// Code here" would then think it is a child session and not save its transcript. Drop only the per-session
+        /// markers; user configuration (CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_GIT_BASH_PATH, …) is kept.
+        /// </summary>
+        private static void ClearInheritedClaudeSession()
+        {
+            // Claude Code's tool shells also set NO_COLOR=1, which would make the opened Claude Code render without its
+            // colours (white instead of orange). Drop it only when inherited from a session, not when the user set it.
+            if (Environment.GetEnvironmentVariable("CLAUDECODE") != null
+                && Environment.GetEnvironmentVariable("NO_COLOR", EnvironmentVariableTarget.User) == null
+                && Environment.GetEnvironmentVariable("NO_COLOR", EnvironmentVariableTarget.Machine) == null)
+                Environment.SetEnvironmentVariable("NO_COLOR", null);
+
+            foreach (var name in new[] {
+                "CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID",
+                "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN",
+                "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT", "AI_AGENT" })
+                Environment.SetEnvironmentVariable(name, null);
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            ClearInheritedClaudeSession();
 
             // Testing aid: Assistail.exe --test-folder "open claude in the folder named x" → parse + search, log, exit.
             if (e.Args.Length >= 2 && e.Args[0] == "--test-folder")
@@ -48,6 +71,9 @@ namespace Assistail
                 Log(args.Exception.ToString());
                 args.Handled = true;
             };
+            // Errors off the UI thread would otherwise end the app without a trace.
+            AppDomain.CurrentDomain.UnhandledException += (_, args) => Log("FATAL: " + args.ExceptionObject);
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) => { Log("Task error: " + args.Exception); args.SetObserved(); };
 
             _settings = Settings.Load();
             _tracker = new ExplorerTracker();
@@ -202,7 +228,10 @@ namespace Assistail
 
         private void ToggleChatFromLion()
         {
-            if (_chat != null && _chat.IsVisible) { _chat.Hide(); return; }
+            // Like a taskbar button: chat in front → hide it; chat open but behind other windows → bring it up.
+            bool hide = _chat != null && _chat.IsVisible && _chat.IsActive;
+            Log("Buddy clicked: " + (hide ? "hide chat" : "show chat"));
+            if (hide) { _chat!.Hide(); return; }
             ShowChat(_tracker?.LastExplorerFolder());
         }
 

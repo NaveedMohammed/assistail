@@ -38,7 +38,7 @@ namespace Assistail
         public struct POINT { public int X, Y; }
 
         public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
-        public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10, SWP_SHOWWINDOW = 0x40;
+        public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10, SWP_SHOWWINDOW = 0x40, SWP_NOZORDER = 0x4;
         public const int GWL_EXSTYLE = -20;
         public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_APPWINDOW = 0x40000;
 

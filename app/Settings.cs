@@ -47,6 +47,9 @@ namespace Assistail
             Save();
         }
 
+        /// <summary>Whether the chat may read (never change) files in the chat's folder to answer questions.</summary>
+        public bool ChatReadsFolder { get; set; } = true;
+
         /// <summary>Whether he occasionally says things on his own in a speech bubble.</summary>
         public bool SelfTalk { get; set; } = true;
 

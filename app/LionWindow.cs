@@ -755,7 +755,8 @@ namespace Assistail
         // ================================================================== mouse
 
         private const int WM_SETCURSOR = 0x20, WM_MOUSEMOVE = 0x200, WM_LBUTTONDOWN = 0x201, WM_LBUTTONUP = 0x202,
-                          WM_RBUTTONUP = 0x205, WM_MOUSELEAVE = 0x2A3, WM_CAPTURECHANGED = 0x215;
+                          WM_RBUTTONUP = 0x205, WM_MOUSELEAVE = 0x2A3, WM_CAPTURECHANGED = 0x215,
+                          WM_MOUSEACTIVATE = 0x21, MA_NOACTIVATE = 3;
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
@@ -770,6 +771,11 @@ namespace Assistail
                     }
                     handled = true;
                     return new IntPtr(1);
+                case WM_MOUSEACTIVATE:
+                    // Clicking him must not steal focus: the chat (or whatever app) stays active,
+                    // so a click can tell "chat is in front → hide it" from "chat is behind → bring it up".
+                    handled = true;
+                    return new IntPtr(MA_NOACTIVATE);
                 case WM_SETCURSOR:
                     Native.SetCursor(_handCursor);
                     handled = true;

@@ -36,6 +36,8 @@ namespace Assistail
             FolderChip.MouseLeftButtonDown += (_, e) => { e.Handled = true; ShowFolderMenu(); };   // before the header's drag
             Header.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
             PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Hide(); e.Handled = true; } };
+            // Clicking another window brings that window to the front instead of the chat staying on top.
+            Deactivated += (_, _) => Topmost = false;
             // Let the mouse wheel scroll the conversation even when hovering over a message.
             Messages.PreviewMouseWheel += (_, e) =>
             {
@@ -65,11 +67,12 @@ namespace Assistail
             if (!_folderPinned) SetFolder(folder, remember: false);
 
             bool wasHidden = !IsVisible;
+            Topmost = true;                    // pops up above everything; drops back once you click elsewhere
             Show();
             if (lionPx is { } lion && workAreaPx is { } work) PlaceBesideLion(lion, work);
             else if (wasHidden) PlaceOnMouseMonitor();
             WindowState = WindowState.Normal;
-            Activate();
+            if (!Activate()) App.Log("Chat could not take focus (Windows kept another app in front).");
             Input.Focus();
         }
 
@@ -84,7 +87,7 @@ namespace Assistail
             int y = work.Bottom - h;                                // bottom edge just above the taskbar, beside the lion
             x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - w));
             y = Math.Clamp(y, work.Top, Math.Max(work.Top, work.Bottom - h));
-            Native.SetWindowPos(hwnd, Native.HWND_TOPMOST, x, y, 0, 0, Native.SWP_NOSIZE);
+            Native.SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOZORDER);
         }
 
         private static readonly System.Text.RegularExpressions.Regex Punct = new(@"[^\p{L}\p{N}\s]");
@@ -139,7 +142,9 @@ namespace Assistail
             if (folder != null)
             {
                 FolderText.Text = "📁 " + TrayIcon.DisplayName(folder);
-                FolderChip.ToolTip = folder + "\nClick to choose another folder";
+                FolderChip.ToolTip = folder +
+                    (_settings.ChatReadsFolder ? $"\n{_settings.NameOrDefault} can read (not change) files here to answer you." : "") +
+                    "\nClick to choose another folder";
                 OpenCodeButton.ToolTip = "Open Claude Code in " + folder;
                 if (remember) _settings.AddRecentFolder(folder);
             }
@@ -213,7 +218,9 @@ namespace Assistail
                 Launcher.OpenClaudeCode(folder);
                 AddAssistantMessage($"Opening Claude Code in {folder} 🚀");
             }
-            else AddAssistantMessage($"Switched to {folder}. Say “open claude here” to start Claude Code there.");
+            else AddAssistantMessage(_settings.ChatReadsFolder
+                ? $"Switched to {folder}. Ask me about the files here (I can read them, not change them), or say “open claude here” to start Claude Code there."
+                : $"Switched to {folder}. Say “open claude here” to start Claude Code there.");
         }
 
         /// <summary>Asks Claude (fast model) to extract the folder from a free-form sentence.</summary>
@@ -229,7 +236,7 @@ namespace Assistail
                     "\"name\": the folder name to search for (just the name, no extra words) else null, " +
                     "\"drive\": drive letter if mentioned else null}";
                 using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(25));
-                string? error = await cli.SendAsync(prompt, "haiku", chunk => sb.Append(chunk), cts.Token);
+                string? error = await cli.SendAsync(prompt, "haiku", null, chunk => sb.Append(chunk), null, cts.Token);
                 if (error != null) return null;
                 var m = System.Text.RegularExpressions.Regex.Match(sb.ToString(), @"\{[\s\S]*\}");
                 if (!m.Success) return null;
@@ -336,14 +343,15 @@ namespace Assistail
             string? error;
             try
             {
-                error = await _cli.SendAsync(text, _settings.Model, chunk =>
+                string? folder = _settings.ChatReadsFolder ? _folder : null;
+                error = await _cli.SendAsync(text, _settings.Model, folder, chunk =>
                 {
                     if (!streaming) { streaming = true; TextStreaming?.Invoke(); }
                     StatusText.Visibility = Visibility.Collapsed;
                     bool atBottom = Scroller.VerticalOffset >= Scroller.ScrollableHeight - 30;
                     reply.AppendText(chunk);
                     if (atBottom) Scroller.ScrollToEnd();
-                }, _cts.Token);
+                }, status => { App.Log("Chat tool: " + status); ShowStatus("🔍 " + status); }, _cts.Token);
             }
             catch (Exception ex)
             {

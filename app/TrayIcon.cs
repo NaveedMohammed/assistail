@@ -86,6 +86,11 @@ namespace Assistail
                 item.Click += (_, _) => { _settings.Model = alias; _settings.Save(); };
                 modelMenu.DropDownItems.Add(item);
             }
+            var readsFolderItem = new ToolStripMenuItem("Can read files in the chat's folder")
+            { ToolTipText = "Lets the chat look at (never change) files in the 📁 folder to answer questions about them." };
+            readsFolderItem.Click += (_, _) => { _settings.ChatReadsFolder = !_settings.ChatReadsFolder; _settings.Save(); };
+            modelMenu.DropDownItems.Add(new ToolStripSeparator());
+            modelMenu.DropDownItems.Add(readsFolderItem);
 
             var startupItem = new ToolStripMenuItem("Start with Windows");
             startupItem.Click += (_, _) => SetStartup(!IsStartupEnabled());
@@ -119,7 +124,9 @@ namespace Assistail
                 selfTalkItem.Checked = _settings.SelfTalk;
                 tricksMenu.Enabled = sayItem.Enabled = !a.LionIsAway();
                 sayItem.Text = $"Make {name} say something…";
-                foreach (ToolStripMenuItem m in modelMenu.DropDownItems) m.Checked = (string)m.Tag! == _settings.Model;
+                foreach (ToolStripItem m in modelMenu.DropDownItems)
+                    if (m is ToolStripMenuItem mi && mi.Tag is string alias) mi.Checked = alias == _settings.Model;
+                readsFolderItem.Checked = _settings.ChatReadsFolder;
                 startupItem.Checked = IsStartupEnabled();
                 _menu.Items[_menu.Items.Count - 1].Text = "Quit Assistail";
             };

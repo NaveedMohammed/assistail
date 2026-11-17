@@ -47,8 +47,10 @@ namespace Assistail
             "the", "a", "an", "my", "our", "this", "that", "folder", "folders", "directory", "dir", "location", "place",
             "project", "repo", "repository", "in", "on", "at", "inside", "of", "with", "into", "to", "from", "drive", "disk",
             "called", "named", "name", "please", "thanks", "thank", "you", "there", "is", "which", "whose", "for", "me",
-            "open", "claude", "code", "can", "could", "would", "will", "hey", "hi", "and", "it", "up", "pls",
+            "open", "claude", "can", "could", "would", "will", "hey", "hi", "and", "it", "up", "pls",
         };
+        // "claude code" / "cc" mean the app, not a folder; a lone "code" is a real folder name ("the code folder").
+        private static readonly Regex AppName = new(@"(?<![\w-])(?:claude(?:\s*code)?|cc)(?![\w-])", Opt);
 
         private static readonly HashSet<string> HereWords = new(StringComparer.OrdinalIgnoreCase)
         { "", "here", "this folder", "current folder", "this location", "there", "in here", "the current folder", "this one" };
@@ -95,7 +97,7 @@ namespace Assistail
             if (req.Name != null) return;
 
             var nm = NamedRx.Match(loc);
-            string phrase = nm.Success ? nm.Groups["n"].Value : loc;
+            string phrase = AppName.Replace(nm.Success ? nm.Groups["n"].Value : loc, " ");
             var words = Regex.Split(phrase, @"[\s,]+").Where(w => w.Length > 0 && !StopWords.Contains(w)).ToList();
             if (words.Count > 0) req.Name = string.Join(" ", words);
         }
