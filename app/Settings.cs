@@ -36,6 +36,17 @@ namespace Assistail
         /// <summary>The "is here" notification is shown once (first launch), not on every start.</summary>
         public bool WelcomeShown { get; set; }
 
+        /// <summary>Folders recently opened or switched to from the chat (most recent first, max 20).</summary>
+        public System.Collections.Generic.List<string> RecentFolders { get; set; } = new();
+
+        public void AddRecentFolder(string folder)
+        {
+            RecentFolders.RemoveAll(f => string.Equals(f.TrimEnd('\\'), folder.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase));
+            RecentFolders.Insert(0, folder);
+            if (RecentFolders.Count > 20) RecentFolders.RemoveRange(20, RecentFolders.Count - 20);
+            Save();
+        }
+
         /// <summary>Whether he occasionally says things on his own in a speech bubble.</summary>
         public bool SelfTalk { get; set; } = true;
 

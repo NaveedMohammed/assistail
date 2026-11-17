@@ -197,6 +197,21 @@
    The <strong>&gt;_ Claude Code</strong> button then opens Claude Code right in that folder. On the desktop, it uses your
    Desktop folder. Otherwise it uses the last Explorer folder you were in, or your home folder.</p>
 
+<h3>Open Claude Code or switch folders by asking</h3>
+<p>Type these in the chat. They're handled instantly by your buddy, without asking Claude:</p>
+<table>
+  <tr><th>You type</th><th>What happens</th></tr>
+  <tr><td><code>open claude here</code></td><td>Opens Claude Code in the chat's current folder (the 📁 chip)</td></tr>
+  <tr><td><code>open claude in C:\code\my-app</code></td><td>Opens it in that exact path (<code>~</code> and <code>%USERPROFILE%</code> work too)</td></tr>
+  <tr><td><code>open claude in downloads</code> / <code>desktop</code> / <code>documents</code></td><td>Opens it in that folder</td></tr>
+  <tr><td><code>open claude in my-app</code><br><code>open claude in the folder in C drive with a name my-app</code></td>
+      <td>Searches for a folder with that name (recent folders, your home and code folders, then your drives). One match opens straight away;
+          several show up as <strong>clickable choices</strong>; none offers <strong>Browse…</strong>. Mention a drive (“on D drive”) to search only there.</td></tr>
+  <tr><td><code>switch to my-app</code> · <code>go to documents</code> · <code>cd C:\code</code></td><td>Changes the chat's folder without opening anything</td></tr>
+</table>
+<p>Click the <strong>📁 folder chip</strong> in the chat header for your recent folders, <strong>Browse…</strong>, or <strong>Open Claude Code here</strong>.
+   A folder you pick stays until you click <strong>New chat</strong>. If your buddy can't make sense of a request, he asks Claude to work out the folder name, which takes a few seconds.</p>
+
 <h3>Good to know</h3>
 <ul>
   <li><strong>Quick chat can't touch your files or run commands.</strong> Tools are turned off on purpose, so it only answers questions.
@@ -302,7 +317,7 @@
 </table>
 <p>Windows updates won't break it, because it only uses standard, long-supported Windows features. Uninstalling removes everything in the table above.</p>
 
-<footer>Assistail 1.3.1 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
+<footer>Assistail 2.1 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
 </div>
 </body>
 </html>

@@ -33,6 +33,7 @@ namespace Assistail
             _settings = settings;
             InitializeComponent();
             UpdateName();
+            FolderChip.MouseLeftButtonDown += (_, e) => { e.Handled = true; ShowFolderMenu(); };   // before the header's drag
             Header.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
             PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Hide(); e.Handled = true; } };
             // Let the mouse wheel scroll the conversation even when hovering over a message.
@@ -60,19 +61,8 @@ namespace Assistail
         /// </summary>
         public void ShowFor(string? folder, System.Drawing.Rectangle? lionPx = null, System.Drawing.Rectangle? workAreaPx = null)
         {
-            _folder = folder;
-            if (folder != null)
-            {
-                FolderText.Text = "📁 " + TrayIcon.DisplayName(folder);
-                FolderChip.ToolTip = folder;
-                FolderChip.Visibility = Visibility.Visible;
-                OpenCodeButton.ToolTip = "Open Claude Code in " + folder;
-            }
-            else
-            {
-                FolderChip.Visibility = Visibility.Collapsed;
-                OpenCodeButton.ToolTip = "Open Claude Code in your home folder";
-            }
+            // A folder chosen in the chat ("switch to …") sticks until "New chat"; otherwise follow Explorer.
+            if (!_folderPinned) SetFolder(folder, remember: false);
 
             bool wasHidden = !IsVisible;
             Show();
@@ -126,8 +116,197 @@ namespace Assistail
                 ReturnRequested?.Invoke();
                 return true;
             }
+            // "open claude in …", "switch to …", "cd …"
+            if (FolderFinder.Parse(text, _settings.NameOrDefault) is FolderRequest req)
+            {
+                EmptyHint.Visibility = Visibility.Collapsed;
+                AddUserMessage(text);
+                Input.Clear();
+                _ = HandleFolderRequestAsync(req);
+                return true;
+            }
             return false;
         }
+
+        // ================================================================== folders (A6)
+
+        private bool _folderPinned;
+        private bool _searching;
+
+        private void SetFolder(string? folder, bool remember)
+        {
+            _folder = folder;
+            if (folder != null)
+            {
+                FolderText.Text = "📁 " + TrayIcon.DisplayName(folder);
+                FolderChip.ToolTip = folder + "\nClick to choose another folder";
+                OpenCodeButton.ToolTip = "Open Claude Code in " + folder;
+                if (remember) _settings.AddRecentFolder(folder);
+            }
+            else
+            {
+                FolderText.Text = "📁 Choose folder";
+                FolderChip.ToolTip = "Choose a folder (recent folders, Browse…)";
+                OpenCodeButton.ToolTip = "Open Claude Code in your home folder";
+            }
+        }
+
+        private async System.Threading.Tasks.Task HandleFolderRequestAsync(FolderRequest req)
+        {
+            if (req.Here)
+            {
+                string here = _folder ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                ApplyFolder(req.Open, here);
+                return;
+            }
+            if (_searching) { AddAssistantMessage("I'm still looking for the last one, one moment…"); return; }
+            _searching = true;
+            ReplyStarted?.Invoke();                     // the buddy "thinks" while searching
+            ShowStatus($"Looking for {req.Describe()}…");
+            var recent = _settings.RecentFolders.ToArray();
+            try
+            {
+                var results = await System.Threading.Tasks.Task.Run(() => FolderFinder.Search(req, recent));
+                if (results.Count == 0)
+                {
+                    // Couldn't work it out locally: ask Claude to pull the folder out of the sentence, then search again.
+                    ShowStatus("Working out which folder you mean…");
+                    var hint = await AskClaudeForFolderAsync(req.Raw);
+                    if (hint != null)
+                    {
+                        hint.Open = req.Open;
+                        results = await System.Threading.Tasks.Task.Run(() => FolderFinder.Search(hint, recent));
+                        if (results.Count > 0) req = hint;
+                    }
+                }
+                HideStatus();
+                if (results.Count == 1) ApplyFolder(req.Open, results[0]);
+                else if (results.Count > 1)
+                {
+                    AddAssistantMessage(req.Open ? "I found a few. Which one should I open Claude Code in?" : "I found a few. Which one?");
+                    AddChoices(results, path => ApplyFolder(req.Open, path), withBrowse: true, open: req.Open);
+                }
+                else
+                {
+                    AddAssistantMessage($"I couldn't find {req.Describe()}. Try the full path (like C:\\Users\\you\\code), or browse for it:");
+                    AddChoices(Array.Empty<string>(), _ => { }, withBrowse: true, open: req.Open);
+                }
+                ReplyFinished?.Invoke(results.Count > 0);
+            }
+            catch (Exception ex)
+            {
+                HideStatus();
+                App.Log("Folder request failed: " + ex);
+                AddAssistantMessage("⚠ Something went wrong while looking for that folder.", ErrorBrush);
+                ReplyFinished?.Invoke(false);
+            }
+            finally { _searching = false; Input.Focus(); }
+        }
+
+        /// <summary>Opens Claude Code in the folder, or switches the chat to it.</summary>
+        private void ApplyFolder(bool open, string folder)
+        {
+            _folderPinned = true;
+            SetFolder(folder, remember: true);
+            if (open)
+            {
+                Launcher.OpenClaudeCode(folder);
+                AddAssistantMessage($"Opening Claude Code in {folder} 🚀");
+            }
+            else AddAssistantMessage($"Switched to {folder}. Say “open claude here” to start Claude Code there.");
+        }
+
+        /// <summary>Asks Claude (fast model) to extract the folder from a free-form sentence.</summary>
+        private async System.Threading.Tasks.Task<FolderRequest?> AskClaudeForFolderAsync(string sentence)
+        {
+            try
+            {
+                var cli = new ClaudeCli { BuddyName = _settings.NameOrDefault };
+                var sb = new System.Text.StringBuilder();
+                string prompt =
+                    "A user asked their Windows desktop assistant to open or switch to a folder. Their words: \"" + sentence + "\"\n" +
+                    "Reply with ONLY a JSON object, no other text: {\"path\": exact Windows path if they gave one else null, " +
+                    "\"name\": the folder name to search for (just the name, no extra words) else null, " +
+                    "\"drive\": drive letter if mentioned else null}";
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(25));
+                string? error = await cli.SendAsync(prompt, "haiku", chunk => sb.Append(chunk), cts.Token);
+                if (error != null) return null;
+                var m = System.Text.RegularExpressions.Regex.Match(sb.ToString(), @"\{[\s\S]*\}");
+                if (!m.Success) return null;
+                using var doc = System.Text.Json.JsonDocument.Parse(m.Value);
+                string? Get(string k) => doc.RootElement.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+                var req = new FolderRequest { Raw = sentence, Path = Get("path"), Name = Get("name") };
+                if (Get("drive") is string d && d.Length > 0 && char.IsLetter(d[0])) req.Drive = char.ToUpperInvariant(d[0]);
+                App.Log($"Claude folder hint: path={req.Path} name={req.Name} drive={req.Drive}");
+                return (req.Path ?? req.Name) != null ? req : null;
+            }
+            catch (Exception ex) { App.Log("Claude folder hint failed: " + ex.Message); return null; }
+        }
+
+        /// <summary>Adds clickable folder choices (and optionally Browse…) to the conversation.</summary>
+        private void AddChoices(System.Collections.Generic.IEnumerable<string> folders, Action<string> choose, bool withBrowse, bool open)
+        {
+            var panel = new StackPanel { Margin = new Thickness(0, 0, 30, 8) };
+            bool used = false;                                   // one choice per list; fade it afterwards
+            var style = (Style)FindResource("ChoiceButton");
+            void AddButton(string label, string? tooltip, Action onClick)
+            {
+                var b = new Button
+                {
+                    Content = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = FgBrush },
+                    ToolTip = tooltip,
+                    Style = style,
+                };
+                b.Click += (_, _) => { if (used) return; used = true; panel.Opacity = 0.5; onClick(); };
+                panel.Children.Add(b);
+            }
+            foreach (var f in folders) AddButton("📁 " + f, f, () => choose(f));
+            if (withBrowse) AddButton("Browse…", "Pick a folder", () =>
+            {
+                if (BrowseForFolder() is string picked) ApplyFolder(open, picked);
+                else { used = false; panel.Opacity = 1; }        // cancelled: choices stay available
+            });
+            Messages.Children.Add(panel);
+            Scroller.ScrollToEnd();
+        }
+
+        private static string? BrowseForFolder()
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog { Description = "Choose a folder", UseDescriptionForTitle = true };
+            return dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dlg.SelectedPath : null;
+        }
+
+        /// <summary>The 📁 chip menu: recent folders, Browse…, Open Claude Code here.</summary>
+        private void ShowFolderMenu()
+        {
+            var menu = new ContextMenu();
+            int added = 0;
+            foreach (var f in _settings.RecentFolders)
+            {
+                if (added >= 8 || !System.IO.Directory.Exists(f)) continue;
+                var item = new MenuItem { Header = f.Replace("_", "__"), IsChecked = string.Equals(f, _folder, StringComparison.OrdinalIgnoreCase) };
+                string folder = f;
+                item.Click += (_, _) => { _folderPinned = true; SetFolder(folder, remember: true); };
+                menu.Items.Add(item);
+                added++;
+            }
+            if (added > 0) menu.Items.Add(new Separator());
+            var browse = new MenuItem { Header = "Browse…" };
+            browse.Click += (_, _) => { if (BrowseForFolder() is string p) { _folderPinned = true; SetFolder(p, remember: true); } };
+            menu.Items.Add(browse);
+            var open = new MenuItem { Header = "Open Claude Code here", IsEnabled = true };
+            open.Click += (_, _) => { Launcher.OpenClaudeCode(_folder); if (_folder != null) _settings.AddRecentFolder(_folder); };
+            menu.Items.Add(open);
+            menu.PlacementTarget = FolderChip;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+
+        /// <summary>Testing aid (ASSISTAIL_TRICK=chat:…): types a message and sends it.</summary>
+        public void SubmitForTest(string text) { Input.Text = text; Send(); }
+
+        private void ShowStatus(string text) { StatusText.Text = text; StatusText.Visibility = Visibility.Visible; }
+        private void HideStatus() { StatusText.Visibility = Visibility.Collapsed; StatusText.Text = "Thinking…"; }
 
         private void PlaceOnMouseMonitor()
         {
@@ -238,6 +417,7 @@ namespace Assistail
         {
             _cts?.Cancel();
             _cli.Reset();
+            _folderPinned = false;            // follow Explorer again
             Messages.Children.Clear();
             Messages.Children.Add(EmptyHint);
             EmptyHint.Visibility = Visibility.Visible;
@@ -267,6 +447,7 @@ namespace Assistail
         private void OpenCode_Click(object sender, RoutedEventArgs e)
         {
             Launcher.OpenClaudeCode(_folder);
+            if (_folder != null) _settings.AddRecentFolder(_folder);
             Hide();
         }
 

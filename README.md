@@ -25,6 +25,7 @@ A bright-eyed, bushy-tailed coding partner that lives on your Windows taskbar an
 - 🎩 **Tricks and quirks**: head shake, jump, stretch & yawn, tail chase, wave, roar, strolls, chasing your pointer, and playing with a butterfly 🦋. Pick them from the right-click menu, cycle them with a hotkey, or let him do them on his own when idle.
 - 🗨️ **Speech bubble**: make him say anything, or let him chat a little on his own.
 - 📂 **"Open Claude Code here"**: in the Explorer right-click menu, the buddy's menu and the chat window.
+- 🧭 **Ask him to open folders**: type `open claude in my-app`, `open claude in the folder in D drive named reports` or `switch to downloads`. He finds the folder (with clickable choices if there are several) and opens Claude Code there.
 - ⌨️ **Shortcuts**: `Ctrl+Alt+Space` to chat, `Ctrl+Alt+T` for the next trick. Both can be changed in the app.
 - 🔋 **Light on battery**: about 1% of one CPU core when active, less when idle, and zero while the PC is locked or the screen is off.
 
@@ -52,7 +53,7 @@ The full user guide (`Assistail Guide.html`) is included in the zip and opens fr
 | A trick | Right-click → Tricks, or press `Ctrl+Alt+T` (each press = next trick) |
 | Make him talk | Right-click → Make … say something… |
 | Send away / call back | Right-click, or type `go away` / `come back` in the chat |
-| Claude Code in a folder | Right-click inside a folder in Explorer → *Open Claude Code here* |
+| Claude Code in a folder | Right-click inside a folder in Explorer → *Open Claude Code here*, or type `open claude in <folder name or path>` in the chat |
 
 ## Privacy
 

@@ -21,6 +21,23 @@ namespace Assistail
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            // Testing aid: Assistail.exe --test-folder "open claude in the folder named x" → parse + search, log, exit.
+            if (e.Args.Length >= 2 && e.Args[0] == "--test-folder")
+            {
+                Directory.CreateDirectory(DataDir);
+                var req = FolderFinder.Parse(e.Args[1], "Leo");
+                if (req == null) Log($"TEST “{e.Args[1]}” → not a folder command");
+                else
+                {
+                    var hits = FolderFinder.Search(req, Settings.Load().RecentFolders);
+                    Log($"TEST “{e.Args[1]}” → open={req.Open} here={req.Here} path={req.Path} name={req.Name} drive={req.Drive} → " +
+                        (hits.Count == 0 ? "no matches" : string.Join(" | ", hits)));
+                }
+                Shutdown();
+                return;
+            }
+
             _mutex = new Mutex(true, @"Local\Assistail", out bool isNew);
             if (!isNew) { Shutdown(); return; }
 
@@ -82,6 +99,7 @@ namespace Assistail
                     string trick = queue.Dequeue().Trim();
                     Log("Test trick: " + trick);
                     if (trick == "shortcuts") { tt.Stop(); OpenShortcuts(); }
+                    else if (trick.StartsWith("chat:")) { ShowChat(_tracker?.LastExplorerFolder()); _chat?.SubmitForTest(trick[5..]); }
                     else if (trick.StartsWith("say:")) _lion.Say(trick[4..]);
                     else _lion.DoTrick(trick);
                 };

@@ -31,6 +31,28 @@
             </Setter>
         </Style>
 
+        <Style x:Key="ChoiceButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#EDEBE6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#3A3936" CornerRadius="8" Padding="10,6" BorderBrush="#4A4945" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4A4945"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#D97757"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="SendButton" TargetType="Button">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -74,7 +96,8 @@
                 <TextBlock x:Name="HeaderName" Grid.Column="1" Text="Claude" Foreground="{StaticResource Fg}" FontWeight="SemiBold"
                            Margin="8,0,10,0" VerticalAlignment="Center"/>
                 <Border x:Name="FolderChip" Grid.Column="2" HorizontalAlignment="Left" Background="#33322F"
-                        CornerRadius="6" Padding="8,2" VerticalAlignment="Center" Visibility="Collapsed">
+                        CornerRadius="6" Padding="8,2" VerticalAlignment="Center" Cursor="Hand"
+                        ToolTip="Choose a folder (recent folders, Browse…)">
                     <TextBlock x:Name="FolderText" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
                 </Border>
                 <StackPanel Grid.Column="3" Orientation="Horizontal">
