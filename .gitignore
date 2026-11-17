@@ -19,3 +19,6 @@ desktop.ini
 # Python bytecode (embeds local file paths)
 __pycache__/
 *.pyc
+
+# Crash dumps
+*.stackdump

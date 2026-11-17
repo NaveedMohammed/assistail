@@ -4,9 +4,16 @@
 
 <h1 align="center">Assistail</h1>
 <p align="center"><b>An assistant with a tail.</b><br>
-A cartoon buddy that sits on your Windows taskbar and chats with you through <a href="https://claude.com/claude-code">Claude Code</a>.</p>
+A bright-eyed, bushy-tailed coding partner that lives on your Windows taskbar and chats with you through <a href="https://claude.com/claude-code">Claude Code</a>.</p>
 
-<p align="center"><img src="docs/lion.png" width="300" alt="The curly-maned lion buddy"></p>
+<p align="center">
+  <a href="https://github.com/NaveedMohammed/assistail/releases/latest"><img src="https://img.shields.io/github/v/release/NaveedMohammed/assistail?label=release&color=e8833a" alt="Latest release"></a>
+  <a href="https://github.com/NaveedMohammed/assistail/releases"><img src="https://img.shields.io/github/downloads/NaveedMohammed/assistail/total?color=e8833a" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/NaveedMohammed/assistail?color=e8833a" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4" alt="Windows 10 | 11">
+</p>
+
+<p align="center"><img src="docs/demo.gif" width="640" alt="Demo: the lion sits on the taskbar, opens a chat, answers a question, plays with a butterfly and does tricks"></p>
 
 > **Unofficial project.** Assistail is a free, community-made companion for Claude Code. It is not affiliated with,
 > endorsed by, or sponsored by Anthropic. "Claude" and "Claude Code" are trademarks of Anthropic, PBC.
