@@ -27,6 +27,145 @@ namespace Assistail
         /// <summary>User typed "go away"/"bye" or "come back" — handled locally, no Claude call.</summary>
         public event Action? LeaveRequested;
         public event Action? ReturnRequested;
+        /// <summary>📎 → "Snip an area of the screen": the app hides the chat, runs the snip and attaches the result.</summary>
+        public event Action? SnipRequested;
+
+        // ================================================================== attachments (A2/A3)
+
+        private readonly System.Collections.Generic.List<Attachment> _pending = new();
+        private string? _attachDir;            // this conversation's attachments folder (created on first use)
+        private bool _attachDirUsed;           // some attachment was copied there, so Claude may read the folder
+
+        private string AttachDir => _attachDir ??= Attachments.NewConversationDir();
+
+        /// <summary>Attaches dropped/pasted files. A folder (with no files) switches the chat to it instead.</summary>
+        public void AttachPaths(System.Collections.Generic.IEnumerable<string> paths, string? droppedText = null)
+        {
+            var list = new System.Collections.Generic.List<string>(paths);
+            var folders = list.FindAll(System.IO.Directory.Exists);
+            var files = list.FindAll(System.IO.File.Exists);
+            if (files.Count == 0 && folders.Count > 0)
+            {
+                EmptyHint.Visibility = Visibility.Collapsed;
+                ApplyFolder(false, folders[0]);
+                return;
+            }
+            foreach (var f in files)
+            {
+                var (a, err) = Attachments.FromFile(f, AttachDir);
+                if (a != null) AddPending(a);
+                else if (err != null) ShowAttachError(err);
+            }
+            if (folders.Count > 0) ShowAttachError("Folders can't be attached; I added the files only. (Drop a folder by itself to switch to it.)");
+            if (files.Count == 0 && !string.IsNullOrWhiteSpace(droppedText)) AddPending(Attachments.FromText(droppedText, AttachDir));
+            FocusInput();
+        }
+
+        /// <summary>Attaches whatever is on the clipboard (files, a picture or text).</summary>
+        public void AttachClipboard()
+        {
+            var (items, errors) = Attachments.FromClipboard(AttachDir);
+            foreach (var a in items) AddPending(a);
+            foreach (var e in errors) ShowAttachError(e);
+            if (items.Count == 0 && errors.Count == 0) ShowAttachError("The clipboard is empty. Copy some text, a picture or files first.");
+            FocusInput();
+        }
+
+        public void AttachImage(System.Windows.Media.Imaging.BitmapSource image, string baseName)
+        {
+            AddPending(Attachments.FromImage(image, AttachDir, baseName));
+            FocusInput();
+        }
+
+        private void AddPending(Attachment a)
+        {
+            _pending.Add(a);
+            RefreshChips();
+        }
+
+        private void ShowAttachError(string message)
+        {
+            EmptyHint.Visibility = Visibility.Collapsed;
+            AddAssistantMessage("⚠ " + message, ErrorBrush);
+        }
+
+        private void FocusInput()
+        {
+            if (IsVisible) { Activate(); Input.Focus(); }
+        }
+
+        private void RefreshChips()
+        {
+            AttachmentChips.Children.Clear();
+            foreach (var a in _pending)
+            {
+                var item = a;
+                var label = new TextBlock
+                {
+                    Text = $"{a.Icon} {a.Name}" + (a.Note != null ? $"  ({a.Note})" : ""),
+                    Foreground = FgBrush, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center,
+                    MaxWidth = 300, TextTrimming = TextTrimming.CharacterEllipsis,
+                };
+                var remove = new Button { Content = "✕", Style = (Style)FindResource("HeaderButton"), FontSize = 11, Padding = new Thickness(0), ToolTip = "Remove" };
+                remove.Click += (_, _) => { _pending.Remove(item); RefreshChips(); Input.Focus(); };
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                row.Children.Add(label);
+                row.Children.Add(remove);
+                AttachmentChips.Children.Add(new Border
+                {
+                    Background = UserBubbleBrush, CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 1, 0, 1),
+                    Margin = new Thickness(0, 0, 6, 4), Child = row, ToolTip = a.CopyPath ?? a.Name,
+                });
+            }
+            AttachmentChips.Visibility = _pending.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdatePlaceholder();
+        }
+
+        private void UpdatePlaceholder()
+        {
+            Placeholder.Text = _pending.Count switch
+            {
+                0 => $"Ask {_settings.NameOrDefault}…",
+                1 => "Ask about this… (e.g. “what failed?”)",
+                _ => "Ask about these files…",
+            };
+            Placeholder.Visibility = Input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void Attach_Click(object sender, RoutedEventArgs e)
+        {
+            var menu = new ContextMenu();
+            var files = new MenuItem { Header = "Attach files…" };
+            files.Click += (_, _) =>
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog { Multiselect = true, Title = "Attach files" };
+                if (dlg.ShowDialog(this) == true) AttachPaths(dlg.FileNames);
+            };
+            var clip = new MenuItem { Header = "Paste from the clipboard" };
+            clip.Click += (_, _) => AttachClipboard();
+            var snip = new MenuItem { Header = "Snip an area of the screen…" };
+            snip.Click += (_, _) => SnipRequested?.Invoke();
+            menu.Items.Add(files);
+            menu.Items.Add(clip);
+            menu.Items.Add(snip);
+            menu.PlacementTarget = AttachButton;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
+            menu.IsOpen = true;
+        }
+
+        private void OnDragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.UnicodeText)
+                ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void OnDrop(object sender, DragEventArgs e)
+        {
+            e.Handled = true;
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0) AttachPaths(files);
+            else if (e.Data.GetData(DataFormats.UnicodeText) is string text && text.Trim().Length > 0) AttachPaths(Array.Empty<string>(), text);
+        }
 
         public ChatWindow(Settings settings)
         {
@@ -38,6 +177,12 @@ namespace Assistail
             PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Hide(); e.Handled = true; } };
             // Clicking another window brings that window to the front instead of the chat staying on top.
             Deactivated += (_, _) => Topmost = false;
+            DragOver += OnDragOver;
+            DragEnter += OnDragOver;
+            Drop += OnDrop;
+            // The input box handles text drops itself; send files to the chat instead.
+            Input.PreviewDragOver += (s, e) => { if (e.Data.GetDataPresent(DataFormats.FileDrop)) OnDragOver(s, e); };
+            Input.PreviewDrop += (s, e) => { if (e.Data.GetDataPresent(DataFormats.FileDrop)) OnDrop(s, e); };
             // Let the mouse wheel scroll the conversation even when hovering over a message.
             Messages.PreviewMouseWheel += (_, e) =>
             {
@@ -328,11 +473,20 @@ namespace Assistail
         private async void Send()
         {
             string text = Input.Text.Trim();
-            if (text.Length == 0 || Busy) return;
-            if (HandleBuddyCommand(text)) return;
+            if (Busy || (text.Length == 0 && _pending.Count == 0)) return;
+            if (_pending.Count == 0 && HandleBuddyCommand(text)) return;
+
+            // Attachments go with this message; the files stay readable for follow-up questions in this chat.
+            var attached = _pending.ToArray();
+            _pending.Clear();
+            RefreshChips();
+            if (attached.Length > 0 && text.Length == 0) text = attached.Length == 1 ? "Have a look at this." : "Have a look at these.";
+            if (Array.Exists(attached, a => a.CopyPath != null)) _attachDirUsed = true;
+            string prompt = Attachments.BuildPrompt(attached, text);
 
             EmptyHint.Visibility = Visibility.Collapsed;
-            AddUserMessage(text);
+            AddUserMessage(attached.Length == 0 ? text
+                : string.Join("  ", Array.ConvertAll(attached, a => $"{a.Icon} {a.Name}")) + "\n" + text);
             Input.Clear();
             TextBox reply = AddAssistantMessage();
             SetBusy(true);
@@ -344,7 +498,7 @@ namespace Assistail
             try
             {
                 string? folder = _settings.ChatReadsFolder ? _folder : null;
-                error = await _cli.SendAsync(text, _settings.Model, folder, chunk =>
+                error = await _cli.SendAsync(prompt, _settings.Model, folder, _attachDirUsed ? _attachDir : null, chunk =>
                 {
                     if (!streaming) { streaming = true; TextStreaming?.Invoke(); }
                     StatusText.Visibility = Visibility.Collapsed;
@@ -426,6 +580,11 @@ namespace Assistail
             _cts?.Cancel();
             _cli.Reset();
             _folderPinned = false;            // follow Explorer again
+            _pending.Clear();
+            RefreshChips();
+            Attachments.DeleteDir(_attachDir);   // the old chat's copies aren't needed any more
+            _attachDir = null;                // a new chat gets a new attachments folder
+            _attachDirUsed = false;
             Messages.Children.Clear();
             Messages.Children.Add(EmptyHint);
             EmptyHint.Visibility = Visibility.Visible;
@@ -438,6 +597,19 @@ namespace Assistail
             {
                 e.Handled = true;
                 Send();
+            }
+            // Ctrl+V with a picture or files (no text) on the clipboard attaches them.
+            else if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                try
+                {
+                    if (!Clipboard.ContainsText() && (Clipboard.ContainsImage() || Clipboard.ContainsFileDropList()))
+                    {
+                        e.Handled = true;
+                        AttachClipboard();
+                    }
+                }
+                catch { /* clipboard busy: let the normal paste run */ }
             }
         }
 
@@ -471,6 +643,7 @@ namespace Assistail
         {
             _shuttingDown = true;
             _cts?.Cancel();
+            Attachments.DeleteDir(_attachDir);
             Close();
         }
     }

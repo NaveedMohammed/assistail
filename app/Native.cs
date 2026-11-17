@@ -155,12 +155,54 @@ namespace Assistail
         [DllImport("shell32.dll")]
         public static extern IntPtr SHAppBarMessage(uint msg, ref APPBARDATA data);
 
+        // --- Consoles / processes (finding the terminal a Claude Code hook runs in) ---
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern bool AttachConsole(uint processId);
+        [DllImport("kernel32.dll")] public static extern bool FreeConsole();
+        [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+        [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+        public const uint GA_ROOT = 2, GA_ROOTOWNER = 3;
+        [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
+        [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
+        public const int SW_RESTORE = 9;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct PROCESSENTRY32
+        {
+            public int dwSize; public int cntUsage; public uint th32ProcessID; public IntPtr th32DefaultHeapID; public uint th32ModuleID;
+            public int cntThreads; public uint th32ParentProcessID; public int pcPriClassBase; public int dwFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string szExeFile;
+        }
+        public const uint TH32CS_SNAPPROCESS = 2;
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint processId);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern bool Process32FirstW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern bool Process32NextW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+        [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern uint GetShortPathName(string longPath, StringBuilder shortPath, uint size);
+
+        // --- Clipboard / drag and drop ---
+        [DllImport("user32.dll")] public static extern uint GetClipboardSequenceNumber();
+        [DllImport("ole32.dll")] public static extern int RegisterDragDrop(IntPtr hwnd, IOleDropTarget target);
+        [DllImport("ole32.dll")] public static extern int RevokeDragDrop(IntPtr hwnd);
+
         public static string ClassOf(IntPtr hwnd)
         {
             var sb = new StringBuilder(256);
             GetClassName(hwnd, sb, sb.Capacity);
             return sb.ToString();
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINTL { public int X, Y; }
+
+    /// <summary>OLE drop target (files dragged onto the buddy's raw layered window).</summary>
+    [ComImport, Guid("00000122-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IOleDropTarget
+    {
+        [PreserveSig] int DragEnter([MarshalAs(UnmanagedType.Interface)] object dataObject, int keyState, POINTL pt, ref int effect);
+        [PreserveSig] int DragOver(int keyState, POINTL pt, ref int effect);
+        [PreserveSig] int DragLeave();
+        [PreserveSig] int Drop([MarshalAs(UnmanagedType.Interface)] object dataObject, int keyState, POINTL pt, ref int effect);
     }
 
     // Minimal COM interfaces used to find which Explorer tab is active (Windows 11 tabbed Explorer).

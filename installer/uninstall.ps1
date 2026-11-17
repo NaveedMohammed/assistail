@@ -9,6 +9,12 @@ Write-Host "Uninstalling Assistail..." -ForegroundColor DarkYellow
 Get-Process Assistail -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 500
 
+# Take the Claude Code alert hooks out of ~/.claude/settings.json (restores the original file if it's unchanged).
+$exe = Join-Path $dest 'Assistail.exe'
+if (Test-Path $exe) {
+    try { Start-Process -FilePath $exe -ArgumentList '--remove-hooks' -Wait -WindowStyle Hidden } catch { }
+}
+
 foreach ($key in 'HKCU:\Software\Classes\Directory\Background\shell\ClaudeCodeHere',
                  'HKCU:\Software\Classes\Directory\shell\ClaudeCodeHere',
                  'HKCU:\Software\Classes\Drive\shell\ClaudeCodeHere',

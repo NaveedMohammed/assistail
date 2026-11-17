@@ -7,10 +7,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Assistail</AssemblyName>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Assistail</Product>
     <RootNamespace>Assistail</RootNamespace>
+    <StartupObject>Assistail.Program</StartupObject>
+    <!-- The release build needs the .NET Desktop Runtime (C2); run on a newer major version if 8 isn't installed. -->
+    <RollForward>Major</RollForward>
     <ApplicationIcon>..\assets\assistail.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Lower idle memory for a tray app: no background GC thread, release memory back to Windows sooner. -->

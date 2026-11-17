@@ -59,7 +59,7 @@ namespace Assistail
     /// <summary>System-wide hotkeys via RegisterHotKey on a hidden message-only window.</summary>
     public sealed class HotkeyService : IDisposable
     {
-        public const int ChatId = 0xB0D1, TrickId = 0xB0D2;
+        public const int ChatId = 0xB0D1, TrickId = 0xB0D2, ClipboardId = 0xB0D3, SnipId = 0xB0D4;
 
         private readonly HwndSource _source;
         private readonly Dictionary<int, Hotkey> _active = new();

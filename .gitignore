@@ -22,3 +22,7 @@ __pycache__/
 
 # Crash dumps
 *.stackdump
+
+# Frame tool build output
+tools/FrameQuantizer/bin/
+tools/FrameQuantizer/obj/

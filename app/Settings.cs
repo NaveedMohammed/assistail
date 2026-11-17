@@ -30,8 +30,31 @@ namespace Assistail
         /// <summary>Next-trick shortcut (cycles through the tricks): "" = default (Ctrl+Alt+T or a free fallback), "None" = off.</summary>
         public string TrickHotkey { get; set; } = "";
 
+        /// <summary>"Ask about the clipboard" shortcut: "" = default, "None" = off.</summary>
+        public string ClipboardHotkey { get; set; } = "";
+
+        /// <summary>"Ask about a screen area" (snip) shortcut: "" = default, "None" = off.</summary>
+        public string SnipHotkey { get; set; } = "";
+
         public static readonly string[] ChatHotkeyDefaults = { "Ctrl+Alt+Space", "Win+Alt+C", "Ctrl+Shift+Space" };
         public static readonly string[] TrickHotkeyDefaults = { "Ctrl+Alt+T", "Ctrl+Alt+J", "Ctrl+Alt+K" };
+        // Three modifiers on purpose: Ctrl+Alt+V / Ctrl+Alt+S already mean something in Office and JetBrains IDEs.
+        public static readonly string[] ClipboardHotkeyDefaults = { "Ctrl+Shift+Alt+V", "Win+Alt+V" };
+        public static readonly string[] SnipHotkeyDefaults = { "Ctrl+Shift+Alt+S", "Win+Alt+S" };
+
+        /// <summary>Show Claude Code activity alerts (needs the hooks, installed from the menu or Settings).</summary>
+        public bool ClaudeAlerts { get; set; } = true;
+
+        /// <summary>The "new: Claude Code alerts" tip is shown once.</summary>
+        public bool AlertsIntroShown { get; set; }
+
+        /// <summary>Check GitHub for a newer version once a day.</summary>
+        public bool AutoUpdateCheck { get; set; } = true;
+
+        public DateTime LastUpdateCheck { get; set; }
+
+        /// <summary>The last version announced in a bubble, so the daily check doesn't repeat it every day.</summary>
+        public string AnnouncedVersion { get; set; } = "";
 
         /// <summary>The "is here" notification is shown once (first launch), not on every start.</summary>
         public bool WelcomeShown { get; set; }

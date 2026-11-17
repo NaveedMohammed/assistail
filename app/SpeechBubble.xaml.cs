@@ -12,12 +12,15 @@ namespace Assistail
     {
         private readonly DispatcherTimer _hideTimer = new();
         public event Action? Hidden;
+        /// <summary>Clicked by the user (raised before the bubble hides).</summary>
+        public event Action? Clicked;
 
         public SpeechBubble()
         {
             InitializeComponent();
             _hideTimer.Tick += (_, _) => Dismiss();
-            MouseLeftButtonUp += (_, _) => Dismiss();
+            MouseLeftButtonUp += (_, _) => { Clicked?.Invoke(); Dismiss(); };
+            Cursor = Cursors.Hand;
             SourceInitialized += (_, _) =>
             {
                 var hwnd = new WindowInteropHelper(this).Handle;
@@ -26,14 +29,14 @@ namespace Assistail
             };
         }
 
-        /// <summary>Shows text for a duration based on its length (2.5–10 s).</summary>
-        public void Say(string text)
+        /// <summary>Shows text for <paramref name="seconds"/>, or a duration based on its length (2.5–10 s).</summary>
+        public void Say(string text, double? seconds = null)
         {
             Text.Text = text;
             Show();
             UpdateLayout();
             _hideTimer.Stop();
-            _hideTimer.Interval = TimeSpan.FromSeconds(Math.Clamp(2.5 + text.Length * 0.07, 2.5, 10));
+            _hideTimer.Interval = TimeSpan.FromSeconds(seconds ?? Math.Clamp(2.5 + text.Length * 0.07, 2.5, 10));
             _hideTimer.Start();
         }
 

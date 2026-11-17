@@ -87,6 +87,18 @@ namespace Assistail
 
         public event Action? Clicked;
         public event Action? MenuRequested;
+        /// <summary>The speech bubble was clicked (<see cref="BubbleTag"/> still tells which message it was).</summary>
+        public event Action? BubbleClicked;
+        /// <summary>The bubble went away (timed out, clicked or replaced); passes its tag.</summary>
+        public event Action<string?>? BubbleHidden;
+        /// <summary>A2: files/folders (or dragged text) dropped on him.</summary>
+        public event Action<string[], string?>? FilesDropped;
+
+        private readonly DropTarget? _drop;
+        private string? _bubbleTag;
+
+        /// <summary>Tag of the message in the visible speech bubble ("alert", "update", …), or null.</summary>
+        public string? BubbleTag => _bubble is { IsVisible: true } ? _bubbleTag : null;
 
         public LionWindow(Settings settings)
         {
@@ -102,6 +114,24 @@ namespace Assistail
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
             _displayNotify = Native.RegisterPowerSettingNotification(_surface.Hwnd, ref Native.GUID_CONSOLE_DISPLAY_STATE, 0);
             ScheduleNextQuirk();
+
+            _drop = DropTarget.Register(_surface.Hwnd);
+            if (_drop != null)
+            {
+                _drop.Hover += OnDragHover;
+                _drop.Dropped += (files, text) => { Touch(); FilesDropped?.Invoke(files, text); };
+            }
+        }
+
+        private void OnDragHover(bool over)
+        {
+            if (over)
+            {
+                Touch();
+                if (CanReact && _state is "idle" or "sleep" or "hover") Play("hover", () => Play("idle"));
+                if (BubbleTag is null or "drop") Say("Drop it on me and ask me about it 📎", 30, "drop", talk: false);
+            }
+            else if (BubbleTag == "drop") _bubble?.Dismiss();
         }
 
         // ================================================================== power: pause when nobody can see him
@@ -204,15 +234,40 @@ namespace Assistail
             }
         }
 
-        /// <summary>Shows text in a speech bubble above his head while he "talks".</summary>
-        public void Say(string text)
+        /// <summary>
+        /// Shows text in a speech bubble above his head while he "talks". <paramref name="tag"/> marks what the message
+        /// is about, so a click on him or the bubble can act on it (see <see cref="BubbleTag"/>).
+        /// </summary>
+        public void Say(string text, double? seconds = null, string? tag = null, bool talk = true)
         {
             if (string.IsNullOrWhiteSpace(text) || _mode is Mode.Away or Mode.Leaving) return;
             _bubble ??= CreateBubble();
-            _bubble.Say(text.Trim());
+            if (_bubble.IsVisible && _bubbleTag != tag)
+            {
+                string? replaced = _bubbleTag;
+                _bubbleTag = tag;
+                BubbleHidden?.Invoke(replaced);
+            }
+            _bubbleTag = tag;
+            _bubble.Say(text.Trim(), seconds);
             PlaceBubble();
-            if (CanReact) Play("talking");
+            if (talk && CanReact) Play("talking");
         }
+
+        /// <summary>
+        /// A1/C1: an attention message (bubble plus a little animation). False if he can't show it right now
+        /// (away, or hidden behind a full-screen app), so the caller can use a tray notification instead.
+        /// </summary>
+        public bool Alert(string animation, string text, double seconds, string tag)
+        {
+            if (_mode is Mode.Away or Mode.Leaving || _hiddenForFullscreen || !_surface.Visible) return false;
+            Touch();
+            Say(text, seconds, tag, talk: false);
+            if (CanReact) Play(animation, () => Play("idle"));
+            return true;
+        }
+
+        public void DismissBubble() => _bubble?.Dismiss();
 
         public void Leave()
         {
@@ -255,6 +310,7 @@ namespace Assistail
             SystemEvents.SessionSwitch -= OnSessionSwitch;
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             if (_displayNotify != IntPtr.Zero) Native.UnregisterPowerSettingNotification(_displayNotify);
+            if (_drop != null) Native.RevokeDragDrop(_surface.Hwnd);
             _bubble?.Close();
             _butterfly.Dispose();
             _surface.Dispose();
@@ -447,7 +503,7 @@ namespace Assistail
             foreach (var (id, weight) in options)
             {
                 if ((roll -= weight) >= 0) continue;
-                if (id == "talk") Say(RandomLine());
+                if (id == "talk") { if (_bubble is not { IsVisible: true }) Say(RandomLine()); }
                 else DoTrick(id);
                 return;
             }
@@ -638,7 +694,14 @@ namespace Assistail
         private SpeechBubble CreateBubble()
         {
             var b = new SpeechBubble();
-            b.Hidden += () => { if (CanReact && _state == "talking") Play("idle"); };
+            b.Clicked += () => BubbleClicked?.Invoke();
+            b.Hidden += () =>
+            {
+                if (CanReact && _state == "talking") Play("idle");
+                string? tag = _bubbleTag;
+                _bubbleTag = null;
+                BubbleHidden?.Invoke(tag);
+            };
             return b;
         }
 

@@ -21,8 +21,14 @@ namespace Assistail
             Remember(Native.GetForegroundWindow());
         }
 
+        /// <summary>Any window came to the front (used to clear a Claude Code alert once you look at that terminal).</summary>
+        public event Action<IntPtr>? ForegroundChanged;
+
         private void OnForegroundChanged(IntPtr hook, uint evt, IntPtr hwnd, int obj, int child, uint thread, uint time)
-            => Remember(hwnd);
+        {
+            Remember(hwnd);
+            ForegroundChanged?.Invoke(hwnd);
+        }
 
         private void Remember(IntPtr hwnd)
         {

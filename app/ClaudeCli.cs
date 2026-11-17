@@ -42,8 +42,13 @@ namespace Assistail
         /// may read (never change) files there; <paramref name="onTool"/> reports each look ("Reading App.cs…").
         /// Returns an error message, or null on success.
         /// </summary>
-        public async Task<string?> SendAsync(string prompt, string model, string? folder, Action<string> onText,
-                                             Action<string>? onTool, CancellationToken ct)
+        public Task<string?> SendAsync(string prompt, string model, string? folder, Action<string> onText,
+                                       Action<string>? onTool, CancellationToken ct)
+            => SendAsync(prompt, model, folder, null, onText, onTool, ct);
+
+        /// <summary>As above; <paramref name="attachmentsDir"/> (A2/A3) holds files the user attached, readable with Read.</summary>
+        public async Task<string?> SendAsync(string prompt, string model, string? folder, string? attachmentsDir,
+                                             Action<string> onText, Action<string>? onTool, CancellationToken ct)
         {
             string workDir = Path.Combine(App.DataDir, "chat"); // fixed folder: keeps --resume working and avoids loading project files
             Directory.CreateDirectory(workDir);
@@ -67,13 +72,24 @@ namespace Assistail
             // The chat always runs in its own folder (so --resume keeps working when the user switches folders);
             // the chosen folder is added with --add-dir and only the read-only tools are available.
             if (folder != null && !Directory.Exists(folder)) folder = null;
+            if (attachmentsDir != null && !Directory.Exists(attachmentsDir)) attachmentsDir = null;
+            psi.Environment[ClaudeHooks.ChatMarkerEnv] = "1";   // our own replies must not trigger Claude Code alerts (A1)
             foreach (var a in new[] { "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages" })
                 psi.ArgumentList.Add(a);
-            if (folder != null)
+            if (folder != null || attachmentsDir != null)
             {
-                foreach (var a in new[] { "--tools", ReadOnlyTools, "--allowedTools", ReadOnlyTools, "--add-dir", folder,
-                                          "--append-system-prompt", SystemPrompt + FolderPrompt(folder) })
-                    psi.ArgumentList.Add(a);
+                // No --allowedTools: a blanket "Read" rule would also allow paths outside the folder. Without it, reads are
+                // limited to the --add-dir folders below (and the chat's own empty folder); anything else is refused in -p mode.
+                foreach (var a in new[] { "--tools", ReadOnlyTools }) psi.ArgumentList.Add(a);
+                if (folder != null) { psi.ArgumentList.Add("--add-dir"); psi.ArgumentList.Add(folder); }
+                if (attachmentsDir != null) { psi.ArgumentList.Add("--add-dir"); psi.ArgumentList.Add(attachmentsDir); }
+                string sys = SystemPrompt;
+                if (folder != null) sys += FolderPrompt(folder);
+                else sys += " You cannot edit files or run commands.";
+                if (attachmentsDir != null)
+                    sys += $" Files the user attached to this chat are in {attachmentsDir}; read them with the Read tool when they are mentioned.";
+                psi.ArgumentList.Add("--append-system-prompt");
+                psi.ArgumentList.Add(sys);
             }
             else
             {

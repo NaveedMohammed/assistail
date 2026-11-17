@@ -74,6 +74,8 @@
   <div class="card"><b>🦁 Your lion buddy</b><span>Sits on your taskbar. Click him to chat; right-click for options. You choose his name.</span></div>
   <div class="card"><b>Quick chat</b><span>Click the lion, or press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> in any app.</span></div>
   <div class="card"><b>Claude Code here</b><span>Right-click in a folder → <em>Open Claude Code here</em>.</span></div>
+  <div class="card"><b>🔔 Alerts</b><span>He tells you when Claude Code finishes or needs you.</span></div>
+  <div class="card"><b>📎 Ask about anything</b><span>Drop a file on him, or ask about the clipboard or a screen snip.</span></div>
 </div>
 
 <nav>
@@ -82,9 +84,11 @@
     <li><a href="#install">Installing</a></li>
     <li><a href="#lion">Your lion buddy</a></li>
     <li><a href="#chat">Quick chat</a></li>
+    <li><a href="#attach">Ask about files, the clipboard or the screen</a></li>
+    <li><a href="#alerts">Claude Code alerts</a></li>
     <li><a href="#rightclick">Right-click menu</a></li>
-    <li><a href="#tray">Tray icon menu</a></li>
-    <li><a href="#upgrade">Upgrading</a></li>
+    <li><a href="#tray">Menu &amp; settings</a></li>
+    <li><a href="#upgrade">Updating</a></li>
     <li><a href="#uninstall">Uninstalling</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#privacy">Privacy &amp; what it changes</a></li>
@@ -107,20 +111,24 @@
   <tr><td>Internet connection</td><td><span class="tag">Required</span></td><td>Needed to talk to Claude.</td></tr>
   <tr><td>Windows Terminal</td><td><span class="tag opt">Optional</span></td>
       <td>Claude Code opens in Windows Terminal if it's installed (it comes with Windows 11), otherwise in Command Prompt.</td></tr>
-  <tr><td>.NET</td><td><span class="tag opt">Not needed</span></td><td>Bundled inside the app.</td></tr>
-  <tr><td>Admin rights</td><td><span class="tag opt">Not needed</span></td><td>Installs for your user account only.</td></tr>
+  <tr><td>.NET Desktop Runtime 8 (or newer)</td><td><span class="tag">Required</span></td>
+      <td>Microsoft's free runtime that Assistail runs on. Many PCs already have it. If yours doesn't, the installer offers to
+          download it from Microsoft and install it (Windows asks for permission once, for Microsoft's installer).
+          Keeping it separate makes the Assistail download much smaller.</td></tr>
+  <tr><td>Admin rights</td><td><span class="tag opt">Not needed</span></td><td>Assistail installs for your user account only. (Only Microsoft's .NET installer needs permission, and only if .NET isn't there yet.)</td></tr>
 </table>
-<p class="muted">Resources: about 190 MB of disk space. About 90–150 MB of memory with the lion on screen, a little more while the chat is open.
+<p class="muted">Resources: about 15 MB of disk space (plus the .NET runtime). About 90–150 MB of memory with the lion on screen, a little more while the chat is open.
    CPU: about 1% of one processor core while he's active, about 0.7% when he's been left alone for 30 seconds (he animates more gently), and <strong>zero while the PC is locked or the screen is off</strong> (he pauses). Short bursts when he switches animations or you send a chat message.</p>
 
 <!-- ================================================================== -->
 <h2 id="install">2. Installing</h2>
 <ol class="steps">
-  <li>Copy <code>Assistail-2.0.0.zip</code> to the laptop and <strong>unzip it</strong>: right-click → <em>Extract All…</em>.
+  <li>Download <code>Assistail-x.y.z.zip</code> from the <a href="https://github.com/NaveedMohammed/assistail/releases/latest">releases page</a> and <strong>unzip it</strong>: right-click → <em>Extract All…</em>.
       Don't run the installer from inside the zip.</li>
   <li>Open the extracted folder and double-click <strong>Install.cmd</strong>.</li>
   <li>If Windows shows <em>“Windows protected your PC”</em>, click <strong>More info</strong> → <strong>Run anyway</strong>.
       This appears because the app isn't code-signed by a publisher, which is normal for a personal tool.</li>
+  <li>If the .NET Desktop Runtime isn't installed yet, the installer offers to get it from Microsoft. Answer <kbd>y</kbd> and accept the Windows prompt.</li>
   <li>Answer <kbd>y</kbd> or <kbd>n</kbd> when asked whether to start Assistail when you sign in.
       You can change this later from the tray menu.</li>
   <li>Assistail starts: the lion appears on your taskbar and asks <em>“What would you like to call me?”</em>.
@@ -144,6 +152,8 @@
   <tr><td>Call him back</td><td>Right-click the tray icon → <em>Call … back</em>, or type <code>come back</code> in the chat. He walks back to his spot.</td></tr>
   <tr><td>Rename him</td><td>Right-click → <em>Rename …</em>. The new name shows up everywhere right away.</td></tr>
   <tr><td>Make him bigger or smaller</td><td>Right-click → <em>…'s size</em> → Small / Medium / Large</td></tr>
+  <tr><td>Ask about a file</td><td><strong>Drag a file onto him</strong> and drop it. The chat opens with the file attached. Drop a <em>folder</em> to open Claude Code there. (See <a href="#attach">section 5</a>.)</td></tr>
+  <tr><td>Go to a Claude Code session that's done or waiting</td><td>Click him (or his bubble) while he shows a 🔔 / ✅ alert. (See <a href="#alerts">section 6</a>.)</td></tr>
 </table>
 <h3>Tricks (right-click → Tricks)</h3>
 <table>
@@ -221,13 +231,59 @@
   <li><strong>The chat pops up on top</strong>, and drops behind when you click another window. Clicking your buddy brings it
       back to the front; clicking him while the chat is in front hides it.</li>
   <li><strong>The first reply takes a few seconds</strong> because each message starts Claude Code in the background.
-      For faster answers, choose <em>Haiku (fastest)</em> under <em>Chat model</em> in the tray menu.</li>
+      For faster answers, choose <em>Haiku (fastest)</em> under <em>Chat model</em> in the menu or in Settings.</li>
   <li>Follow-up questions remember the conversation until you click <strong>New chat</strong> or quit the app.</li>
   <li>Replies are shown as plain text.</li>
 </ul>
 
 <!-- ================================================================== -->
-<h2 id="rightclick">5. Right-click menu: “Open Claude Code here”</h2>
+<h2 id="attach">5. Ask about files, the clipboard or the screen</h2>
+<p>Give your buddy something to look at, then ask about it (“what failed?”, “explain this error”, “what's in this picture?”).</p>
+<table>
+  <tr><th>To…</th><th>Do this</th></tr>
+  <tr><td>Ask about a file</td><td><strong>Drop it on the lion</strong> (he perks up while you drag it over him), drop it on the chat window, or click <strong>📎</strong> in the chat → <em>Attach files…</em></td></tr>
+  <tr><td>Ask about something you copied</td><td>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> anywhere, menu → <em>Ask about the clipboard</em>, or 📎 → <em>Paste from the clipboard</em>.
+      Works with copied text, pictures (screenshots) and files. In the chat box, <kbd>Ctrl</kbd>+<kbd>V</kbd> with a picture on the clipboard attaches it too.</td></tr>
+  <tr><td>Ask about part of the screen</td><td>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>, menu → <em>Ask about a screen area…</em>, or 📎 → <em>Snip an area of the screen…</em>.
+      The Windows snipping overlay appears: drag over the area and the snip lands in the chat.</td></tr>
+  <tr><td>Open Claude Code in a folder</td><td>Drop the folder on the lion. (Dropped on the chat window, a folder becomes the chat's 📁 folder instead.)</td></tr>
+</table>
+<p>Attached items show as chips above the message box; click ✕ on a chip to remove it. Then type your question and press <kbd>Enter</kbd>
+   (with no question, he just takes a look).</p>
+<ul>
+  <li><strong>Text files</strong> (logs, code, notes) up to 100 KB go straight into your message. Bigger ones, up to 20 MB, are read in parts as needed.</li>
+  <li><strong>Pictures</strong> (PNG, JPG, GIF, WebP) and <strong>PDFs</strong> up to 20 MB are looked at by Claude.</li>
+  <li>Other kinds of files (zip, exe, …) and anything over 20 MB get a clear “can't read this” message.</li>
+  <li>Attached files are copied into a private folder for that conversation (<code>%LOCALAPPDATA%\Assistail\attachments</code>), so follow-up
+      questions can look at them again. The chat can only <em>read</em> them. The copies are deleted when you click <strong>New chat</strong> or quit (and anything left over after a day).</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="alerts">6. Claude Code alerts</h2>
+<p>Working in Claude Code in a terminal? Your buddy can keep an eye on it for you:</p>
+<ul>
+  <li>When a Claude Code session <strong>finishes</strong>, he hops happily and says <em>“Done! ✅ my-app”</em> with the first sentence of Claude's answer.</li>
+  <li>When Claude Code <strong>needs your permission or input</strong>, he jumps and says <em>“🔔 Claude needs you in my-app”</em>.</li>
+  <li><strong>Click him (or the bubble)</strong> to jump straight to that terminal window.</li>
+  <li>Several sessions at once? The newest alert shows first, the others follow.</li>
+  <li>No alert shows while you're already looking at that terminal, and an alert goes away when you switch to it yourself.</li>
+  <li>When he's sent away (or a full-screen app is in front), alerts appear as Windows notifications instead.</li>
+</ul>
+<h3>Setting it up</h3>
+<p>Right-click the lion → <em>Claude Code alerts</em> → <em>Set up…</em> (or <em>Settings</em> → <em>Claude Code alerts</em> → <em>Set up…</em>).
+   Assistail shows exactly what it will add and asks first. It adds two small <em>hooks</em> to Claude Code's settings file
+   (<code>%USERPROFILE%\.claude\settings.json</code>): when a session stops or sends a notification, Claude Code runs
+   <code>Assistail.exe --notify …</code>, which passes the event to your buddy and exits straight away. It never blocks Claude Code.</p>
+<ul>
+  <li>Sessions that are already running pick up the hooks when you restart them.</li>
+  <li><em>Show alerts</em> turns the alerts off and on without touching the hooks.</li>
+  <li><em>Remove from Claude Code</em> takes the hooks out again. If you haven't changed settings.json since, the original file is put back exactly;
+      otherwise only Assistail's two entries are removed. Uninstalling Assistail also removes them.</li>
+  <li>The quick chat's own replies never cause alerts.</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="rightclick">7. Right-click menu: “Open Claude Code here”</h2>
 <p>In File Explorer, right-click any of these and choose <strong>Open Claude Code here</strong>:</p>
 <ul>
   <li>empty space inside a folder (opens in that folder)</li>
@@ -240,7 +296,7 @@
 <p class="muted">The right-click menu works even when the tray app isn't running.</p>
 
 <!-- ================================================================== -->
-<h2 id="tray">6. Menu (tray icon or right-click the lion)</h2>
+<h2 id="tray">8. Menu (tray icon or right-click the lion) and Settings</h2>
 <p><strong>Right-click the lion</strong> or <strong>right-click the orange spark</strong> in the system tray (left-click the spark opens the chat).
    Items show your lion's name. “Leo” is used here as an example:</p>
 <table>
@@ -248,6 +304,8 @@
   <tr><td>Chat with Leo</td><td>Opens the chat. The hotkey is shown next to it.</td></tr>
   <tr><td>Open Claude Code in “<em>folder</em>”</td><td>Opens Claude Code in the last File Explorer folder you used (or your home folder).</td></tr>
   <tr><td>Open Claude Code in folder…</td><td>Pick any folder, then Claude Code opens there.</td></tr>
+  <tr><td>Ask about the clipboard</td><td>Opens the chat with what you copied attached (text, a picture or files).</td></tr>
+  <tr><td>Ask about a screen area…</td><td>Snip part of the screen; the snip is attached in the chat.</td></tr>
   <tr><td>Send Leo away / Call Leo back</td><td>He walks off the taskbar, or walks back to his spot.</td></tr>
   <tr><td>Rename Leo…</td><td>Give him a new name.</td></tr>
   <tr><td>Tricks ▸</td><td><em>Next trick</em> (with its shortcut) or pick any trick for him to do right now.</td></tr>
@@ -255,32 +313,63 @@
   <tr><td>Leo's size</td><td>Small, Medium or Large.</td></tr>
   <tr><td>Quirks when idle ▸</td><td>How often he does random quirks (Often / Sometimes / Rarely / Off), and whether he talks on his own.</td></tr>
   <tr><td>Chat model</td><td><em>Default</em> (Claude Code's default), <em>Haiku</em> (fastest), <em>Sonnet</em>, or <em>Opus</em> (smartest). Only affects quick chat.</td></tr>
-  <tr><td>Shortcuts…</td><td>Change the keyboard shortcuts for <em>Chat</em> (default <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd>) and <em>Next trick</em> (default <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>): click a box and press the keys you want, or turn a shortcut off. If another app already uses a combination, you are told so.</td></tr>
+  <tr><td>Claude Code alerts ▸</td><td><em>Show alerts</em> on/off, <em>Set up…</em> (adds the hooks), <em>Remove from Claude Code</em>. See <a href="#alerts">section 6</a>.</td></tr>
   <tr><td>Start with Windows</td><td>Tick to launch Assistail automatically when you sign in.</td></tr>
+  <tr><td>Settings…</td><td>Everything in one window, see below.</td></tr>
+  <tr><td>Install update vX.Y.Z</td><td>Only shown when a newer version is available. See <a href="#upgrade">Updating</a>.</td></tr>
+  <tr><td>Check for updates</td><td>Asks GitHub whether there's a newer version right now.</td></tr>
   <tr><td>Help &amp; user guide</td><td>Opens this page.</td></tr>
   <tr><td>Quit Assistail</td><td>Closes the app. Restart it from the Start menu.</td></tr>
 </table>
 
-<!-- ================================================================== -->
-<h2 id="upgrade">7. Upgrading</h2>
-<p>Unzip the new version and double-click its <strong>Install.cmd</strong>. It closes the running copy, replaces it,
-   and keeps your settings (chat model, start with Windows).</p>
+<h3>Settings window</h3>
+<p>Menu → <strong>Settings…</strong> has every option in one place: your buddy's name, size, quirks and self-talk; the chat model and
+   whether the chat may read files in its folder; all four keyboard shortcuts (click a box and press the keys you want, or turn one off);
+   Claude Code alerts; update checks; and start with Windows. Click <strong>Save</strong> to apply.</p>
+<table>
+  <tr><th>Shortcut</th><th>Default</th></tr>
+  <tr><td>Chat with your buddy</td><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd></td></tr>
+  <tr><td>Next trick</td><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd></td></tr>
+  <tr><td>Ask about the clipboard</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd></td></tr>
+  <tr><td>Ask about a screen area</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd></td></tr>
+</table>
+<p class="muted">If another app already uses a default, Assistail picks a fallback (shown in the menu and in Settings).</p>
 
 <!-- ================================================================== -->
-<h2 id="uninstall">8. Uninstalling</h2>
+<h2 id="upgrade">9. Updating</h2>
+<p><strong>Automatic:</strong> once a day Assistail asks GitHub whether a newer version is out. If there is one, your buddy says
+   <em>“Update available”</em>: click him (or menu → <em>Install update</em>) and confirm. He downloads it, checks it against the
+   SHA-256 checksum GitHub publishes for the file, installs it and comes back a few seconds later with all your settings.
+   Nothing is installed without your OK. Turn the daily check off in <em>Settings → Updates</em>; <em>Check for updates</em> in the menu
+   still works any time.</p>
+<p><strong>By hand:</strong> unzip a new version and double-click its <strong>Install.cmd</strong>. It closes the running copy, replaces it,
+   and keeps your settings.</p>
+
+<!-- ================================================================== -->
+<h2 id="uninstall">10. Uninstalling</h2>
 <p><strong>Settings → Apps → Installed apps → Assistail → Uninstall</strong>.
    Or run <code>Uninstall.cmd</code> in <code>%LOCALAPPDATA%\Programs\Assistail</code>.</p>
-<p>This removes the app, the right-click menu item, the Start menu entry, the startup entry, and Assistail's settings
-   and log. Claude Code itself is not touched.</p>
+<p>This removes the app, the right-click menu item, the Start menu entry, the startup entry, Assistail's settings,
+   log and attachment copies, and the alert hooks in Claude Code's settings (if you set them up). Nothing else in Claude Code is touched.
+   The .NET Desktop Runtime stays installed (other apps may use it); remove it in <em>Settings → Apps</em> if you like.</p>
 
 <!-- ================================================================== -->
-<h2 id="troubleshooting">9. Troubleshooting</h2>
+<h2 id="troubleshooting">11. Troubleshooting</h2>
 <table>
   <tr><th>Problem</th><th>Try this</th></tr>
   <tr><td>The hotkey does nothing</td>
       <td>Another app may already use <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd>. Assistail then falls back to
           <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>.
-          Right-click the lion: the active shortcut is shown next to <em>Chat with …</em>. To pick a different combination, use right-click → <em>Shortcuts…</em>.</td></tr>
+          Right-click the lion: the active shortcut is shown next to <em>Chat with …</em>. To pick a different combination, use right-click → <em>Settings…</em>.</td></tr>
+  <tr><td>No Claude Code alerts</td>
+      <td>Check menu → <em>Claude Code alerts</em>: it should say <em>Set up ✓</em> and <em>Show alerts</em> should be ticked. Restart the
+          Claude Code session after setting up. Alerts are skipped while that terminal is the window in front. Assistail must be running.</td></tr>
+  <tr><td>Clicking an alert doesn't bring the terminal forward</td>
+      <td>Windows sometimes refuses to switch windows; the terminal's taskbar button flashes instead. With several Windows Terminal tabs, the window comes forward but not the tab.</td></tr>
+  <tr><td>“Ask about a screen area” does nothing</td>
+      <td>It uses the Windows snipping overlay (Snipping Tool). Make sure Snipping Tool is installed and copies snips to the clipboard (its default).</td></tr>
+  <tr><td>The installer says .NET is missing</td>
+      <td>Install the <a href="https://dotnet.microsoft.com/download/dotnet/8.0">.NET 8 Desktop Runtime (x64)</a> from Microsoft, then run Install.cmd again.</td></tr>
   <tr><td>Chat says “Couldn't start Claude Code” or shows an error</td>
       <td>Open a terminal and run <code>claude</code>. If it isn't found, install the Claude Code CLI. If it asks you to sign in, do so.
           Then quit Assistail and start it again.</td></tr>
@@ -301,19 +390,24 @@
 </table>
 
 <!-- ================================================================== -->
-<h2 id="privacy">10. Privacy &amp; what it changes on your PC</h2>
+<h2 id="privacy">12. Privacy &amp; what it changes on your PC</h2>
 <h3>Your messages</h3>
 <p>Quick chat sends your messages through the Claude Code CLI to Claude, using your own signed-in account, exactly as if
    you had typed them into Claude Code. Assistail has no servers of its own and sends nothing anywhere else.
    Like any Claude Code session, the conversation history is saved by Claude Code under
    <code>%USERPROFILE%\.claude\projects</code>.</p>
+<h3>Network</h3>
+<p>Apart from chat (through Claude Code), the only thing Assistail does online is the update check: once a day it asks
+   <code>api.github.com</code> for the latest release of this project (and downloads it if you choose to install). The request carries no
+   personal information. Turn it off in <em>Settings → Updates</em>.</p>
 
 <h3>What gets installed</h3>
 <p>Assistail is an ordinary app. It doesn't modify Windows, install drivers or services, or need admin rights. Everything is per-user:</p>
 <table>
   <tr><th>Location</th><th>Purpose</th></tr>
   <tr><td><code>%LOCALAPPDATA%\Programs\Assistail</code></td><td>The app, icon, this guide, uninstaller</td></tr>
-  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings and log file</td></tr>
+  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings, log file, attachment copies (deleted on New chat or quit), and a backup of Claude Code's settings while alerts are set up</td></tr>
+  <tr><td><code>%USERPROFILE%\.claude\settings.json</code></td><td>Two hook entries for Claude Code alerts (only if you set them up)</td></tr>
   <tr><td><code>HKCU\Software\Classes\Directory\…\shell\ClaudeCodeHere</code><br><code>HKCU\Software\Classes\Drive\shell\ClaudeCodeHere</code></td><td>Right-click menu item</td></tr>
   <tr><td><code>HKCU\…\CurrentVersion\Uninstall\Assistail</code></td><td>Entry in Settings → Apps</td></tr>
   <tr><td><code>HKCU\…\CurrentVersion\Run</code> → <code>Assistail</code></td><td>Start with Windows (only if enabled)</td></tr>
@@ -321,7 +415,7 @@
 </table>
 <p>Windows updates won't break it, because it only uses standard, long-supported Windows features. Uninstalling removes everything in the table above.</p>
 
-<footer>Assistail 2.1 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
+<footer>Assistail 2.3 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
 </div>
 </body>
 </html>

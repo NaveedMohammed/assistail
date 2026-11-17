@@ -4,6 +4,9 @@
 #   - Start menu shortcut
 #   - entry in Settings > Apps (for uninstalling)
 #   - optional: start with Windows
+#   - needs Microsoft's free .NET Desktop Runtime 8 (or newer); offers to install it if it's missing
+#     (Microsoft's installer asks for admin rights once; Assistail itself never does)
+# The app's built-in updater runs this with -Quiet.
 param([switch]$Quiet, [switch]$StartWithWindows)
 $ErrorActionPreference = 'Stop'
 
@@ -11,11 +14,68 @@ $src     = $PSScriptRoot
 $dest    = Join-Path $env:LOCALAPPDATA 'Programs\Assistail'
 $exe     = Join-Path $dest 'Assistail.exe'
 $ico     = Join-Path $dest 'assistail.ico'
-$version = (Get-Item (Join-Path $src 'Assistail.exe')).VersionInfo.ProductVersion
+$version = (Get-Item (Join-Path $src 'Assistail.exe')).VersionInfo.ProductVersion -replace '\+.*$', ''
 
 Write-Host ""
 Write-Host "Installing Assistail $version" -ForegroundColor DarkYellow
 Write-Host "  -> $dest"
+
+# 0. The .NET Desktop Runtime (8 or newer, x64) must be installed.
+function Test-DesktopRuntime {
+    $roots = @()
+    if ($env:DOTNET_ROOT) { $roots += $env:DOTNET_ROOT }
+    $reg = Get-ItemProperty 'HKLM:\SOFTWARE\dotnet\Setup\InstalledVersions\x64' -Name InstallLocation -ErrorAction SilentlyContinue
+    if ($reg) { $roots += $reg.InstallLocation }
+    $roots += (Join-Path $env:ProgramFiles 'dotnet')
+    foreach ($r in $roots) {
+        $dir = Join-Path $r 'shared\Microsoft.WindowsDesktop.App'
+        if (-not (Test-Path $dir)) { continue }
+        foreach ($v in Get-ChildItem $dir -Directory) {
+            $major = 0
+            if ([int]::TryParse(($v.Name -split '\.')[0], [ref]$major) -and $major -ge 8) { return $true }
+        }
+    }
+    return $false
+}
+
+if (-not (Test-DesktopRuntime)) {
+    $runtimeUrl = 'https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe'
+    Write-Host ""
+    Write-Host "  Assistail needs Microsoft's .NET Desktop Runtime 8 (free, about 55 MB)." -ForegroundColor Yellow
+    if ($Quiet) {
+        Write-Host "  It isn't installed. Get it from https://dotnet.microsoft.com/download/dotnet/8.0 and run the installer again." -ForegroundColor Yellow
+        exit 1
+    }
+    $answer = Read-Host "  Download and install it from Microsoft now? Windows will ask for permission. (Y/n)"
+    if ($answer -match '^(n|no)$') {
+        Write-Host "  Install it later from https://dotnet.microsoft.com/download/dotnet/8.0 (Desktop Runtime, x64), then run Install.cmd again."
+        Read-Host "Press Enter to close" | Out-Null
+        exit 1
+    }
+    $setup = Join-Path $env:TEMP 'windowsdesktop-runtime-8-win-x64.exe'
+    try {
+        Write-Host "  Downloading from Microsoft..."
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $runtimeUrl -OutFile $setup -UseBasicParsing
+        $sig = Get-AuthenticodeSignature $setup
+        if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            throw "The download isn't signed by Microsoft."
+        }
+        Write-Host "  Installing (accept the Windows prompt)..."
+        Start-Process -FilePath $setup -ArgumentList '/install', '/passive', '/norestart' -Wait
+    } catch {
+        Write-Host "  ! Couldn't install the runtime: $($_.Exception.Message)" -ForegroundColor Yellow
+    } finally {
+        Remove-Item $setup -Force -ErrorAction SilentlyContinue
+    }
+    if (-not (Test-DesktopRuntime)) {
+        Write-Host "  ! The .NET Desktop Runtime still isn't installed. Get it from https://dotnet.microsoft.com/download/dotnet/8.0" -ForegroundColor Yellow
+        Write-Host "    (Desktop Runtime, x64), then run Install.cmd again."
+        Read-Host "Press Enter to close" | Out-Null
+        exit 1
+    }
+    Write-Host "  + .NET Desktop Runtime installed"
+}
 
 # 1. Stop a running copy (so upgrades can overwrite the exe)
 Get-Process Assistail -ErrorAction SilentlyContinue | Stop-Process -Force

@@ -20,9 +20,18 @@ namespace Assistail
         public Action<string> DoTrick = _ => { };
         public Action NextTrick = () => { };
         public Action SaySomething = () => { };
-        public Action OpenShortcuts = () => { };
+        public Action OpenSettings = () => { };
         public Func<string> ChatHotkeyText = () => "";
         public Func<string> TrickHotkeyText = () => "";
+        public Func<string> ClipboardHotkeyText = () => "";
+        public Func<string> SnipHotkeyText = () => "";
+        public Action AskClipboard = () => { };
+        public Action AskSnip = () => { };
+        public Action InstallHooks = () => { };
+        public Action RemoveHooks = () => { };
+        public Func<string?> PendingUpdate = () => null;
+        public Action InstallUpdate = () => { };
+        public Action CheckForUpdates = () => { };
         public Action Quit = () => { };
     }
 
@@ -95,12 +104,29 @@ namespace Assistail
             var startupItem = new ToolStripMenuItem("Start with Windows");
             startupItem.Click += (_, _) => SetStartup(!IsStartupEnabled());
 
+            var clipItem = new ToolStripMenuItem("Ask about the clipboard", null, (_, _) => a.AskClipboard());
+            var snipItem = new ToolStripMenuItem("Ask about a screen area…", null, (_, _) => a.AskSnip());
+
+            var alertsMenu = new ToolStripMenuItem("Claude Code alerts");
+            var alertsOnItem = new ToolStripMenuItem("Show alerts")
+            { ToolTipText = "Your buddy tells you when Claude Code finishes or needs you." };
+            alertsOnItem.Click += (_, _) => { _settings.ClaudeAlerts = !_settings.ClaudeAlerts; _settings.Save(); };
+            var hooksItem = new ToolStripMenuItem("Set up…");
+            var removeHooksItem = new ToolStripMenuItem("Remove from Claude Code", null, (_, _) => a.RemoveHooks());
+            alertsMenu.DropDownItems.AddRange(new ToolStripItem[] { alertsOnItem, new ToolStripSeparator(), hooksItem, removeHooksItem });
+            hooksItem.Click += (_, _) => a.InstallHooks();
+
+            var updateItem = new ToolStripMenuItem("Install update", null, (_, _) => a.InstallUpdate())
+            { Font = new Font(_menu.Font, System.Drawing.FontStyle.Bold) };
+            var checkItem = new ToolStripMenuItem("Check for updates", null, (_, _) => a.CheckForUpdates());
+
             _menu.Items.AddRange(new ToolStripItem[]
             {
-                chatItem, openItem, browseItem, new ToolStripSeparator(),
+                chatItem, openItem, browseItem, clipItem, snipItem, new ToolStripSeparator(),
                 tricksMenu, sayItem, new ToolStripSeparator(),
                 awayItem, renameItem, sizeMenu, quirksMenu, new ToolStripSeparator(),
-                modelMenu, new ToolStripMenuItem("Shortcuts…", null, (_, _) => a.OpenShortcuts()), startupItem, new ToolStripSeparator(),
+                modelMenu, alertsMenu, startupItem, new ToolStripMenuItem("Settings…", null, (_, _) => a.OpenSettings()), new ToolStripSeparator(),
+                updateItem, checkItem,
                 new ToolStripMenuItem("Help && user guide", null, (_, _) => OpenGuide()),
                 new ToolStripMenuItem("Quit", null, (_, _) => a.Quit()),
             });
@@ -128,13 +154,32 @@ namespace Assistail
                     if (m is ToolStripMenuItem mi && mi.Tag is string alias) mi.Checked = alias == _settings.Model;
                 readsFolderItem.Checked = _settings.ChatReadsFolder;
                 startupItem.Checked = IsStartupEnabled();
+                clipItem.ShortcutKeyDisplayString = a.ClipboardHotkeyText();
+                snipItem.ShortcutKeyDisplayString = a.SnipHotkeyText();
+                var hooks = ClaudeHooks.State();
+                alertsOnItem.Checked = _settings.ClaudeAlerts;
+                alertsOnItem.Enabled = hooks != ClaudeHooks.HookState.NotInstalled;
+                hooksItem.Text = hooks switch
+                {
+                    ClaudeHooks.HookState.Installed => "Set up ✓ (reinstall…)",
+                    ClaudeHooks.HookState.InstalledElsewhere => "Update the hooks…",
+                    _ => "Set up (add hooks to Claude Code)…",
+                };
+                removeHooksItem.Enabled = hooks != ClaudeHooks.HookState.NotInstalled;
+                string? pending = a.PendingUpdate();
+                updateItem.Visible = pending != null;
+                updateItem.Text = $"Install update v{pending}";
                 _menu.Items[_menu.Items.Count - 1].Text = "Quit Assistail";
             };
 
             _icon = new NotifyIcon { Icon = LoadIcon(), ContextMenuStrip = _menu, Visible = true };
             _icon.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) a.ShowChat(); };
+            _icon.BalloonTipClicked += (_, _) => { var act = _balloonAction; _balloonAction = null; act?.Invoke(); };
+            _icon.BalloonTipClosed += (_, _) => _balloonAction = null;
             UpdateName();
         }
+
+        private Action? _balloonAction;
 
         public void UpdateName()
         {
@@ -145,7 +190,11 @@ namespace Assistail
         /// <summary>Shows the same menu at the mouse pointer (used when right-clicking the lion).</summary>
         public void ShowMenuAtCursor() => _menu.Show(Cursor.Position);
 
-        public void Notify(string title, string text) => _icon.ShowBalloonTip(4000, title, text, ToolTipIcon.None);
+        public void Notify(string title, string text, Action? onClick = null)
+        {
+            _balloonAction = onClick;
+            _icon.ShowBalloonTip(4000, title, text, ToolTipIcon.None);
+        }
 
         public static string DisplayName(string folder)
         {
@@ -180,13 +229,13 @@ namespace Assistail
             return Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? SystemIcons.Application;
         }
 
-        private static bool IsStartupEnabled()
+        public static bool IsStartupEnabled()
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey);
             return key?.GetValue(RunValue) is string;
         }
 
-        private static void SetStartup(bool enable)
+        public static void SetStartup(bool enable)
         {
             using var key = Registry.CurrentUser.CreateSubKey(RunKey);
             if (enable) key.SetValue(RunValue, $"\"{Environment.ProcessPath}\"");
