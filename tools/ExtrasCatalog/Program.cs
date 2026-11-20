@@ -189,6 +189,4 @@ static byte[] ZipPack(string json)
 
 static string Sha256(byte[] data) => Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
 // Same as the app: extra.json text with LF line endings.
-static string JsonSha(string json) => Sha256(Encoding.UTF8.GetBytes(json.Replace("
-", "
-")));
+static string JsonSha(string json) => Sha256(Encoding.UTF8.GetBytes(json.Replace("\r\n", "\n")));
