@@ -5,7 +5,10 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False" ShowActivated="False"
         FontFamily="Segoe UI" FontSize="14">
-    <Grid Margin="6,6,6,4">
+    <Grid x:Name="Root" Margin="6,16,18,4" RenderTransformOrigin="0.12,1"><!-- room for the bounce overshoot -->
+        <Grid.RenderTransform>
+            <ScaleTransform x:Name="Scale" ScaleX="1" ScaleY="1"/>
+        </Grid.RenderTransform>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="12"/>
@@ -14,7 +17,12 @@
             <Border.Effect>
                 <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.25"/>
             </Border.Effect>
-            <TextBlock x:Name="Text" Foreground="#222" TextWrapping="Wrap" MaxWidth="240"/>
+            <StackPanel>
+                <TextBlock x:Name="Text" Foreground="#222" TextWrapping="Wrap" MaxWidth="240"/>
+                <!-- B5: small grey line under reminders ("click = done · right-click = snooze") -->
+                <TextBlock x:Name="Hint" Foreground="#8A867E" FontSize="11" TextWrapping="Wrap" MaxWidth="240"
+                           Margin="0,3,0,0" Visibility="Collapsed"/>
+            </StackPanel>
         </Border>
         <!-- Tail pointing down toward the lion -->
         <Path x:Name="Tail" Grid.Row="1" Fill="White" Stroke="#E3DFD5" StrokeThickness="1" HorizontalAlignment="Left"

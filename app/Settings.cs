@@ -76,6 +76,41 @@ namespace Assistail
         /// <summary>Whether he occasionally says things on his own in a speech bubble.</summary>
         public bool SelfTalk { get; set; } = true;
 
+        /// <summary>B5: per-pack state (enabled, setting values), keyed by pack id.</summary>
+        public System.Collections.Generic.Dictionary<string, ExtraState> Extras { get; set; } = new();
+
+        /// <summary>C9: download the extras catalog (when the Extras window opens, and once a day to look for pack updates).</summary>
+        public bool ExtrasOnline { get; set; } = true;
+        public DateTime LastExtrasCheck { get; set; }
+        /// <summary>The pack updates last announced in a bubble ("id@version,…"), so the same ones aren't announced daily.</summary>
+        public string AnnouncedExtrasUpdates { get; set; } = "";
+
+        /// <summary>B5: today's tallies (🍅, 💧, Claude Code tasks…); reset when <see cref="CountersDate"/> isn't today.</summary>
+        public System.Collections.Generic.Dictionary<string, int> Counters { get; set; } = new();
+        public string CountersDate { get; set; } = "";
+
+        public int Counter(string name)
+        {
+            ResetCountersIfNewDay();
+            return Counters.TryGetValue(name, out int n) ? n : 0;
+        }
+
+        public int AddToCounter(string name)
+        {
+            ResetCountersIfNewDay();
+            Counters[name] = Counter(name) + 1;
+            Save();
+            return Counters[name];
+        }
+
+        private void ResetCountersIfNewDay()
+        {
+            string today = DateTime.Today.ToString("yyyy-MM-dd");
+            if (CountersDate == today) return;
+            CountersDate = today;
+            Counters.Clear();
+        }
+
         [System.Text.Json.Serialization.JsonIgnore]
         public string NameOrDefault => string.IsNullOrWhiteSpace(BuddyName) ? "Leo" : BuddyName;
 
@@ -97,5 +132,19 @@ namespace Assistail
             try { File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true })); }
             catch (Exception ex) { App.Log("Settings save failed: " + ex.Message); }
         }
+    }
+
+    /// <summary>B5: what the user chose for one extras pack.</summary>
+    public class ExtraState
+    {
+        public bool Enabled { get; set; } = true;
+        /// <summary>Setting values the user changed (missing = the pack's default).</summary>
+        public System.Collections.Generic.Dictionary<string, string> Values { get; set; } = new();
+        /// <summary>Date (yyyy-MM-dd) each "at" reminder last fired, keyed by reminder index, so a restart doesn't repeat it.</summary>
+        public System.Collections.Generic.Dictionary<string, string> FiredOn { get; set; } = new();
+        /// <summary>How noticeable this pack's messages are: 0 = as the pack suggests, else 1 subtle / 2 normal / 3 noticeable.</summary>
+        public int Attention { get; set; }
+        /// <summary>Remind again, more noticeably, when ignored: null = as the pack suggests.</summary>
+        public bool? Escalate { get; set; }
     }
 }

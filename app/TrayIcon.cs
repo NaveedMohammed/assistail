@@ -32,6 +32,8 @@ namespace Assistail
         public Func<string?> PendingUpdate = () => null;
         public Action InstallUpdate = () => { };
         public Action CheckForUpdates = () => { };
+        /// <summary>B5: fills the Extras submenu each time the menu opens.</summary>
+        public Action<ToolStripMenuItem> FillExtrasMenu = _ => { };
         public Action Quit = () => { };
     }
 
@@ -116,6 +118,9 @@ namespace Assistail
             alertsMenu.DropDownItems.AddRange(new ToolStripItem[] { alertsOnItem, new ToolStripSeparator(), hooksItem, removeHooksItem });
             hooksItem.Click += (_, _) => a.InstallHooks();
 
+            var extrasMenu = new ToolStripMenuItem("Extras");
+            extrasMenu.DropDownItems.Add(new ToolStripMenuItem("(loading)"));   // filled when the menu opens
+
             var updateItem = new ToolStripMenuItem("Install update", null, (_, _) => a.InstallUpdate())
             { Font = new Font(_menu.Font, System.Drawing.FontStyle.Bold) };
             var checkItem = new ToolStripMenuItem("Check for updates", null, (_, _) => a.CheckForUpdates());
@@ -123,7 +128,7 @@ namespace Assistail
             _menu.Items.AddRange(new ToolStripItem[]
             {
                 chatItem, openItem, browseItem, clipItem, snipItem, new ToolStripSeparator(),
-                tricksMenu, sayItem, new ToolStripSeparator(),
+                tricksMenu, sayItem, extrasMenu, new ToolStripSeparator(),
                 awayItem, renameItem, sizeMenu, quirksMenu, new ToolStripSeparator(),
                 modelMenu, alertsMenu, startupItem, new ToolStripMenuItem("Settings…", null, (_, _) => a.OpenSettings()), new ToolStripSeparator(),
                 updateItem, checkItem,
@@ -170,6 +175,7 @@ namespace Assistail
                 updateItem.Visible = pending != null;
                 updateItem.Text = $"Install update v{pending}";
                 _menu.Items[_menu.Items.Count - 1].Text = "Quit Assistail";
+                a.FillExtrasMenu(extrasMenu);
             };
 
             _icon = new NotifyIcon { Icon = LoadIcon(), ContextMenuStrip = _menu, Visible = true };
@@ -181,10 +187,21 @@ namespace Assistail
 
         private Action? _balloonAction;
 
+        private string? _status;
+
         public void UpdateName()
         {
-            string tip = $"{_settings.NameOrDefault} (Assistail)";
-            _icon.Text = tip.Length > 63 ? tip[..63] : tip;
+            string tip = _status != null ? $"{_settings.NameOrDefault} · {_status}" : $"{_settings.NameOrDefault} (Assistail)";
+            tip = tip.Length > 63 ? tip[..63] : tip;
+            if (_icon.Text != tip) _icon.Text = tip;
+        }
+
+        /// <summary>B5: a running routine's status in the tooltip ("🍅 Focus · 12 min left"); null = just the name.</summary>
+        public void SetStatus(string? status)
+        {
+            if (status == _status) return;
+            _status = status;
+            UpdateName();
         }
 
         /// <summary>Shows the same menu at the mouse pointer (used when right-clicking the lion).</summary>

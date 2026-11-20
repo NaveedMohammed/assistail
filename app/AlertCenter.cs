@@ -33,6 +33,9 @@ namespace Assistail
         private Alert? _shown;
         private bool _replacing;
 
+        /// <summary>A Claude Code session finished (Stop hook), raised on the UI thread. B5 counts these for the day.</summary>
+        public event Action? TaskFinished;
+
         public AlertCenter(Settings settings, LionWindow lion, TrayIcon tray, ExplorerTracker tracker)
         {
             _settings = settings;
@@ -58,6 +61,7 @@ namespace Assistail
             string text;
             if (kind == "stop")
             {
+                _dispatcher.BeginInvoke(() => TaskFinished?.Invoke());   // B5: counted even if no bubble shows
                 string? summary = Summarize(Str(p, "last_assistant_message") ?? LastAssistantText(Str(p, "transcript_path")));
                 text = $"Done! ✅ {folder}" + (summary != null ? "\n" + summary : "");
             }

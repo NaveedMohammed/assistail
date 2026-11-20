@@ -6,5 +6,13 @@
   "mane_tip": "#A44F27",
   "fur": "#C77A22",
   "head_scale": 1.15,
-  "ear_scale": 1.45
+  "ear_scale": 1.45,
+  "paw": {
+    "note": "Approved paw look (2026-11-19): P5 pads without the cuff for the boop, S2 wooden sign without the cuff. Used by tools/paw.py and tools/animate_paw.py.",
+    "pad_color": "#C98B7A",
+    "pad_shape": "round",
+    "toe_beans": true,
+    "wrist_curls": false,
+    "sign_style": "wood"
+  }
 }

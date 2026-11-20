@@ -86,6 +86,7 @@
     <li><a href="#chat">Quick chat</a></li>
     <li><a href="#attach">Ask about files, the clipboard or the screen</a></li>
     <li><a href="#alerts">Claude Code alerts</a></li>
+    <li><a href="#extras">Extras: reminders &amp; focus timer</a></li>
     <li><a href="#rightclick">Right-click menu</a></li>
     <li><a href="#tray">Menu &amp; settings</a></li>
     <li><a href="#upgrade">Updating</a></li>
@@ -283,7 +284,52 @@
 </ul>
 
 <!-- ================================================================== -->
-<h2 id="rightclick">7. Right-click menu: “Open Claude Code here”</h2>
+<h2 id="extras">7. Extras: reminders and a focus timer</h2>
+<p><strong>Extras</strong> are optional packs that teach your buddy new routines. Nothing is included by default: you add the ones you want.
+   A pack only holds settings and lines for him; it can't run programs.</p>
+<ul>
+  <li>🍅 <strong>Pomodoro timer</strong>: focus for 25 minutes, then a 5-minute break (a longer one every 4 rounds). He keeps quiet while you focus,
+      naps during breaks and tells you when each part ends. Start it from the menu → <em>Extras</em> → <em>Start Pomodoro</em>;
+      pause, skip or stop it there too. The time left shows when you hover over the tray icon.</li>
+  <li>🙆 <strong>Stretch reminder</strong> (every 60 minutes), 💧 <strong>water reminder</strong> (every 90 minutes, counts your glasses)
+      and 👀 <strong>eye break</strong> (20-20-20: every 20 minutes, look far away for 20 seconds).</li>
+  <li>🌆 <strong>End-of-day nudge</strong>: at 18:00 on weekdays he suggests wrapping up and tells you how many Claude Code tasks finished and
+      how many 🍅 you did today.</li>
+</ul>
+<h3>Reminders are polite</h3>
+<ul>
+  <li>Timers count only the time you're actually at the PC. Step away for 5 minutes or more and they start over.</li>
+  <li>They wait while a full-screen app or presentation is in front, while Windows is in do-not-disturb, while the chat is open
+      and during a Pomodoro focus round, and never talk over another message.</li>
+  <li><strong>Click</strong> the bubble (or him) when you've done it. <strong>Right-click</strong> the bubble to snooze it.</li>
+  <li>When he's sent away, reminders appear as Windows notifications instead.</li>
+</ul>
+<h3>How noticeable</h3>
+<p>Each pack can be <strong>Subtle</strong> (a small bubble and a gesture), <strong>Normal</strong> (the bubble bounces to catch your eye),
+   <strong>Noticeable</strong> (he walks toward the middle of the taskbar with a bigger bubble, then goes back to his spot),
+   <strong>Sign</strong> (his paw slides in from the right side of the screen holding a wooden sign with the reminder) or
+   <strong>Boop</strong> (his paw rises up and boops your screen, leaving a paw print with the reminder that fades away).
+   Click the paw when you've done it, or right-click it to snooze. The paw never takes the keyboard from what you're typing,
+   and it never appears over a full-screen app, a presentation or do-not-disturb: then it's a "Noticeable" reminder instead.
+   Packs come with sensible defaults (an eye break is subtle, a finished Pomodoro break is noticeable); change it per pack in
+   <em>Manage extras…</em>. With <em>“If I don't react, remind me again a bit louder”</em>, an ignored reminder comes back once,
+   two minutes later, one step more noticeable.</p>
+<h3>Adding, changing and removing extras</h3>
+<ul>
+  <li><strong>Add:</strong> <em>Extras</em> → <em>Get more extras…</em> shows the packs in the official catalog; click <strong>Install</strong>.
+      Every pack is checked against the catalog's signature before it installs. You can also drop a pack (a <code>.zip</code> or an
+      <code>extra.json</code> file) on him, or use <em>Extras</em> → <em>Install pack from file…</em>; packs that aren't from the
+      catalog come with a warning.</li>
+  <li><strong>Update:</strong> once a day he looks for newer versions of your packs and tells you; they're in the <em>Updates</em> tab.
+      Your settings for a pack are kept when it updates.</li>
+  <li><strong>Turn on or off:</strong> tick or untick a pack in the <em>Extras</em> menu.</li>
+  <li><strong>Change the timings:</strong> <em>Extras</em> → <em>Manage extras…</em> shows every pack with its settings (how often, what time, …)
+      and a <em>Remove</em> button.</li>
+  <li>Packs live in <code>%LOCALAPPDATA%\Assistail\extras</code>. A pack made for a newer Assistail is listed but not used until you update.</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="rightclick">8. Right-click menu: “Open Claude Code here”</h2>
 <p>In File Explorer, right-click any of these and choose <strong>Open Claude Code here</strong>:</p>
 <ul>
   <li>empty space inside a folder (opens in that folder)</li>
@@ -296,7 +342,7 @@
 <p class="muted">The right-click menu works even when the tray app isn't running.</p>
 
 <!-- ================================================================== -->
-<h2 id="tray">8. Menu (tray icon or right-click the lion) and Settings</h2>
+<h2 id="tray">9. Menu (tray icon or right-click the lion) and Settings</h2>
 <p><strong>Right-click the lion</strong> or <strong>right-click the orange spark</strong> in the system tray (left-click the spark opens the chat).
    Items show your lion's name. “Leo” is used here as an example:</p>
 <table>
@@ -314,6 +360,7 @@
   <tr><td>Quirks when idle ▸</td><td>How often he does random quirks (Often / Sometimes / Rarely / Off), and whether he talks on his own.</td></tr>
   <tr><td>Chat model</td><td><em>Default</em> (Claude Code's default), <em>Haiku</em> (fastest), <em>Sonnet</em>, or <em>Opus</em> (smartest). Only affects quick chat.</td></tr>
   <tr><td>Claude Code alerts ▸</td><td><em>Show alerts</em> on/off, <em>Set up…</em> (adds the hooks), <em>Remove from Claude Code</em>. See <a href="#alerts">section 6</a>.</td></tr>
+  <tr><td>Extras ▸</td><td>Start/pause/stop the Pomodoro timer, turn packs on or off, <em>Manage extras…</em>, <em>Install pack from file…</em>. See <a href="#extras">section 7</a>.</td></tr>
   <tr><td>Start with Windows</td><td>Tick to launch Assistail automatically when you sign in.</td></tr>
   <tr><td>Settings…</td><td>Everything in one window, see below.</td></tr>
   <tr><td>Install update vX.Y.Z</td><td>Only shown when a newer version is available. See <a href="#upgrade">Updating</a>.</td></tr>
@@ -336,7 +383,7 @@
 <p class="muted">If another app already uses a default, Assistail picks a fallback (shown in the menu and in Settings).</p>
 
 <!-- ================================================================== -->
-<h2 id="upgrade">9. Updating</h2>
+<h2 id="upgrade">10. Updating</h2>
 <p><strong>Automatic:</strong> once a day Assistail asks GitHub whether a newer version is out. If there is one, your buddy says
    <em>“Update available”</em>: click him (or menu → <em>Install update</em>) and confirm. He downloads it, checks it against the
    SHA-256 checksum GitHub publishes for the file, installs it and comes back a few seconds later with all your settings.
@@ -346,7 +393,7 @@
    and keeps your settings.</p>
 
 <!-- ================================================================== -->
-<h2 id="uninstall">10. Uninstalling</h2>
+<h2 id="uninstall">11. Uninstalling</h2>
 <p><strong>Settings → Apps → Installed apps → Assistail → Uninstall</strong>.
    Or run <code>Uninstall.cmd</code> in <code>%LOCALAPPDATA%\Programs\Assistail</code>.</p>
 <p>This removes the app, the right-click menu item, the Start menu entry, the startup entry, Assistail's settings,
@@ -354,7 +401,7 @@
    The .NET Desktop Runtime stays installed (other apps may use it); remove it in <em>Settings → Apps</em> if you like.</p>
 
 <!-- ================================================================== -->
-<h2 id="troubleshooting">11. Troubleshooting</h2>
+<h2 id="troubleshooting">12. Troubleshooting</h2>
 <table>
   <tr><th>Problem</th><th>Try this</th></tr>
   <tr><td>The hotkey does nothing</td>
@@ -390,23 +437,28 @@
 </table>
 
 <!-- ================================================================== -->
-<h2 id="privacy">12. Privacy &amp; what it changes on your PC</h2>
+<h2 id="privacy">13. Privacy &amp; what it changes on your PC</h2>
 <h3>Your messages</h3>
 <p>Quick chat sends your messages through the Claude Code CLI to Claude, using your own signed-in account, exactly as if
    you had typed them into Claude Code. Assistail has no servers of its own and sends nothing anywhere else.
    Like any Claude Code session, the conversation history is saved by Claude Code under
    <code>%USERPROFILE%\.claude\projects</code>.</p>
 <h3>Network</h3>
-<p>Apart from chat (through Claude Code), the only thing Assistail does online is the update check: once a day it asks
-   <code>api.github.com</code> for the latest release of this project (and downloads it if you choose to install). The request carries no
-   personal information. Turn it off in <em>Settings → Updates</em>.</p>
+<p>Apart from chat (through Claude Code), Assistail goes online for two things, and neither request carries any personal information:</p>
+<ul>
+  <li><strong>App updates:</strong> once a day it asks <code>api.github.com</code> for the latest release of this project (and downloads it if you
+      choose to install). Turn it off in <em>Settings → Updates</em>.</li>
+  <li><strong>Extras:</strong> when you open <em>Extras → Available</em>, and once a day if you have packs installed, it downloads the extras
+      catalog's list from <code>raw.githubusercontent.com</code> (or its mirror <code>cdn.jsdelivr.net</code>), plus any pack you install.
+      Turn it off in <em>Settings → Updates</em> or in the Extras window.</li>
+</ul>
 
 <h3>What gets installed</h3>
 <p>Assistail is an ordinary app. It doesn't modify Windows, install drivers or services, or need admin rights. Everything is per-user:</p>
 <table>
   <tr><th>Location</th><th>Purpose</th></tr>
   <tr><td><code>%LOCALAPPDATA%\Programs\Assistail</code></td><td>The app, icon, this guide, uninstaller</td></tr>
-  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings, log file, attachment copies (deleted on New chat or quit), and a backup of Claude Code's settings while alerts are set up</td></tr>
+  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings, log file, attachment copies (deleted on New chat or quit), your extras packs (<code>extras</code>) and the saved extras catalog list, and a backup of Claude Code's settings while alerts are set up</td></tr>
   <tr><td><code>%USERPROFILE%\.claude\settings.json</code></td><td>Two hook entries for Claude Code alerts (only if you set them up)</td></tr>
   <tr><td><code>HKCU\Software\Classes\Directory\…\shell\ClaudeCodeHere</code><br><code>HKCU\Software\Classes\Drive\shell\ClaudeCodeHere</code></td><td>Right-click menu item</td></tr>
   <tr><td><code>HKCU\…\CurrentVersion\Uninstall\Assistail</code></td><td>Entry in Settings → Apps</td></tr>

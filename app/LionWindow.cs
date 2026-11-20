@@ -85,10 +85,19 @@ namespace Assistail
         }
         private bool _chatOpen;
 
+        /// <summary>B5: a focus timer is running: no random quirks or self-talk.</summary>
+        public bool FocusMode { get; set; }
+        /// <summary>B5: what he does instead of sitting idle (e.g. "sleep" during a break), or null.</summary>
+        public string? RestPose { get; set; }
+        /// <summary>B5: self-talk topics an enabled pack already covers ("water", "stretch", "break"): those lines are skipped.</summary>
+        public System.Collections.Generic.HashSet<string> SuppressedTopics { get; } = new();
+
         public event Action? Clicked;
         public event Action? MenuRequested;
         /// <summary>The speech bubble was clicked (<see cref="BubbleTag"/> still tells which message it was).</summary>
         public event Action? BubbleClicked;
+        /// <summary>The speech bubble was right-clicked (B5: snooze a reminder).</summary>
+        public event Action? BubbleRightClicked;
         /// <summary>The bubble went away (timed out, clicked or replaced); passes its tag.</summary>
         public event Action<string?>? BubbleHidden;
         /// <summary>A2: files/folders (or dragged text) dropped on him.</summary>
@@ -267,6 +276,67 @@ namespace Assistail
             return true;
         }
 
+        /// <summary>
+        /// B5: a message from an extras pack: an optional trick plus an optional bubble. False if he can't show the
+        /// bubble right now (away or hidden behind a full-screen app), so the caller can use a tray notification.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="attention"/>: 1 subtle (plain bubble), 2 normal (the bubble bounces), 3 noticeable (he walks
+        /// toward the middle of the taskbar with a bigger bubble, then goes back to his spot when it's gone).
+        /// </remarks>
+        public bool ShowExtra(string? trick, string? text, double seconds, string tag, string? hint = null, int attention = 2)
+        {
+            if (text != null && (_mode is Mode.Away or Mode.Leaving || _hiddenForFullscreen || !_surface.Visible)) return false;
+            Touch();
+            bool visit = attention >= 3 && text != null && StartVisit(tag, trick);
+            if (text != null) { Say(text, seconds, tag, talk: trick == null && !visit); _bubble?.SetHint(hint); _bubble?.SetAttention(attention); }
+            if (trick != null && !visit)
+            {
+                if (trick is "walk_around" or "chase" or "butterfly") DoTrick(trick);
+                else if (CanReact) Play(trick, () => Play("idle"));
+            }
+            return true;
+        }
+
+        // ------------------------------------------------------------------ B5: walk over for a noticeable reminder
+
+        private string? _visitTag;          // the reminder he walked over for (null once its bubble is gone)
+        private string? _visitTrick;        // done when he arrives
+        private bool _awayFromSpot;         // not on his saved spot because of a visit: walk back when the bubble is gone
+        private bool _homing;               // walking back
+        private double _walkSpeedMul = 1;
+
+        /// <summary>Walks toward the middle of the taskbar (quickly). False if he can't or is already near it.</summary>
+        private bool StartVisit(string tag, string? trick)
+        {
+            if (_mode != Mode.Sitting || _dragging) return false;
+            double half = _player["idle"].ShadowW / 2 * _px;
+            double mid = (_ground.Left + _ground.Right) / 2.0;
+            // Stop a little short of the centre, on his side of it, so he doesn't stand right in the middle.
+            double target = Math.Clamp(mid - Math.Sign(mid - _centerPx) * 120 * _ground.Scale, _ground.Left + half, _ground.Right - half);
+            if (Math.Abs(target - _centerPx) < 150 * _ground.Scale) return false;
+            _visitTag = tag;
+            _visitTrick = trick;
+            _awayFromSpot = true;
+            _walkSpeedMul = 3;
+            _mode = Mode.Strolling;
+            StandFacing(target > _centerPx ? 1 : -1, () => BeginWalk(target));
+            return true;
+        }
+
+        private void WalkHome()
+        {
+            double home = TargetCenterPx();
+            if (Math.Abs(home - _centerPx) < 4) { _awayFromSpot = false; return; }
+            _homing = true;
+            _walkSpeedMul = 3;
+            _mode = Mode.Strolling;
+            StandFacing(home > _centerPx ? 1 : -1, () => BeginWalk(home));
+        }
+
+        /// <summary>B5: whether he can show a message right now (not away, not hidden behind a full-screen app).</summary>
+        public bool CanShowMessages => _mode is not (Mode.Away or Mode.Leaving) && !_hiddenForFullscreen && _surface.Visible;
+
         public void DismissBubble() => _bubble?.Dismiss();
 
         public void Leave()
@@ -274,6 +344,8 @@ namespace Assistail
             if (_mode is Mode.Strolling or Mode.Chasing or Mode.Playing) { _pendingTrick = "__leave"; InterruptTrick(); return; }
             if (_mode != Mode.Sitting || _dragging) return;
             _bubble?.Dismiss();
+            _awayFromSpot = _homing = false;
+            _visitTag = null;
             _mode = Mode.Leaving;
             int dir = _centerPx > (_ground.Left + _ground.Right) / 2.0 ? +1 : -1;
             StandFacing(dir, () => BeginWalk(_centerPx + dir * WalkSpeedPx * WalkSeconds));
@@ -373,7 +445,9 @@ namespace Assistail
                     EndChase();
                     break;
                 case Mode.Strolling when _walking:
-                    SaveSpot();
+                    _walkSpeedMul = 1;
+                    _homing = false;
+                    if (!_awayFromSpot) SaveSpot();
                     SitDown();
                     break;
                 // Still turning / standing up: BeginWalk sees the pending trick and sits back down instead.
@@ -385,6 +459,7 @@ namespace Assistail
         {
             if (_pendingTrick != null && _mode is Mode.Strolling or Mode.Chasing) { SitDown(); return; }
             Play("walk");
+            if (_walkSpeedMul > 1.5) _frameStep = 2;   // quicker pace, quicker legs
             _walking = true;
             _walkStart = DateTime.Now;
             _walkFromPx = _centerPx;
@@ -472,8 +547,11 @@ namespace Assistail
                 return;
             }
             if (_dragging || _state != "idle") return;
+            if (_awayFromSpot && _visitTag == null && _bubble is not { IsVisible: true }) { WalkHome(); return; }
+            if (_awayFromSpot) return;
+            if (RestPose != null && _bubble is not { IsVisible: true } && _player.Has(RestPose)) { Play(RestPose); return; }
             if (DateTime.Now - LastActivity > SleepAfter) { Play("sleep"); return; }
-            if (ChatOpen || _settings.QuirkFrequency == "Off" || DateTime.Now < _nextQuirk) return;
+            if (FocusMode || ChatOpen || _settings.QuirkFrequency == "Off" || DateTime.Now < _nextQuirk) return;
             ScheduleNextQuirk();
             DoRandomQuirk();
         }
@@ -514,22 +592,25 @@ namespace Assistail
             string name = _settings.NameOrDefault;
             int hour = DateTime.Now.Hour;
             string greeting = hour < 12 ? "Good morning! ☀️" : hour < 17 ? "Good afternoon! 🌤️" : "Good evening! 🌙";
-            string[] lines =
+            // Lines with a topic are skipped while an extras pack covers it (B5), so reminders aren't doubled.
+            var lines = new System.Collections.Generic.List<string>();
+            foreach (var (topic, line) in new (string?, string)[]
             {
-                greeting,
-                $"{name} here! Need a hand? Click me.",
-                "*yawn* … long day?",
-                "Don't forget to drink some water 💧",
-                "Time to stretch? I just did! 🦁",
-                "I'm right here if you need me.",
-                "Ask me anything, I'm a good listener.",
-                "Have you taken a break lately?",
-                "This taskbar is very comfy.",
-                "Rawr! (that's lion for hello)",
-                "Need help with some code? Right-click me → Open Claude Code.",
-                "*purrs*",
-            };
-            return lines[_rng.Next(lines.Length)];
+                (null, greeting),
+                (null, $"{name} here! Need a hand? Click me."),
+                (null, "*yawn* … long day?"),
+                ("water", "Don't forget to drink some water 💧"),
+                ("stretch", "Time to stretch? I just did! 🦁"),
+                (null, "I'm right here if you need me."),
+                (null, "Ask me anything, I'm a good listener."),
+                ("break", "Have you taken a break lately?"),
+                (null, "This taskbar is very comfy."),
+                (null, "Rawr! (that's lion for hello)"),
+                (null, "Need help with some code? Right-click me → Open Claude Code."),
+                (null, "*purrs*"),
+            })
+                if (topic == null || !SuppressedTopics.Contains(topic)) lines.Add(line);
+            return lines[_rng.Next(lines.Count)];
         }
 
         // ================================================================== walking: leave / arrive / stroll
@@ -549,7 +630,7 @@ namespace Assistail
 
         private void StepWalk()
         {
-            double speed = WalkSpeedPx;
+            double speed = WalkSpeedPx * (_mode == Mode.Strolling ? _walkSpeedMul : 1);
             double total = Math.Abs(_walkTargetPx - _walkFromPx);
             double seconds = _mode == Mode.Strolling ? Math.Max(0.5, total / speed) : WalkSeconds;
             double u = Math.Min(1, (DateTime.Now - _walkStart).TotalSeconds / seconds);
@@ -575,8 +656,15 @@ namespace Assistail
             }
             else if (u >= 1)
             {
-                SaveSpot();
-                SitDown();
+                _walkSpeedMul = 1;
+                if (_homing) { _homing = false; _awayFromSpot = false; SitDown(); }
+                else if (_awayFromSpot)
+                {
+                    string? trick = _visitTrick;   // arrived for a reminder: sit, then do its trick
+                    _visitTrick = null;
+                    SitDown(() => { if (trick != null && _player.Has(trick) && trick is not ("walk_around" or "chase" or "butterfly")) Play(trick, () => Play("idle")); });
+                }
+                else { SaveSpot(); SitDown(); }
             }
         }
 
@@ -695,10 +783,12 @@ namespace Assistail
         {
             var b = new SpeechBubble();
             b.Clicked += () => BubbleClicked?.Invoke();
+            b.RightClicked += () => BubbleRightClicked?.Invoke();
             b.Hidden += () =>
             {
                 if (CanReact && _state == "talking") Play("idle");
                 string? tag = _bubbleTag;
+                if (tag != null && tag == _visitTag) _visitTag = null;   // he walks back once he's sitting
                 _bubbleTag = null;
                 BubbleHidden?.Invoke(tag);
             };
@@ -898,7 +988,7 @@ namespace Assistail
                     else _pendingTrick = "__sit";       // still standing up: sit back down instead of walking
                     break;
                 case Mode.Strolling:
-                    if (_walking) { SaveSpot(); SitDown(); }
+                    if (_walking) { _walkSpeedMul = 1; _homing = false; if (!_awayFromSpot) SaveSpot(); SitDown(); }
                     else _pendingTrick = "__sit";
                     break;
                 // Arriving: let him finish walking in; the chat opens next to him.
@@ -954,6 +1044,8 @@ namespace Assistail
             {
                 _dragging = false;
                 _dragLiftPx = 0;
+                _awayFromSpot = _homing = false;
+                _visitTag = null;
                 SaveSpot();
                 Play("landing", () => Play("idle"));
             }

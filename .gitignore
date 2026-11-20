@@ -26,3 +26,7 @@ __pycache__/
 # Frame tool build output
 tools/FrameQuantizer/bin/
 tools/FrameQuantizer/obj/
+
+# Extras catalog tool build output
+tools/ExtrasCatalog/bin/
+tools/ExtrasCatalog/obj/

@@ -35,3 +35,6 @@ Remove-Item $stage -Recurse -Force
 $manifest | ConvertTo-Json -Depth 5 -Compress | Set-Content (Join-Path $dest 'lion.json') -Encoding utf8
 $size = (Get-ChildItem $dest -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
 Write-Host ("Lion assets: {0} states, {1:N1} MB -> {2}" -f $states.Count, $size, $dest)
+# The paw reminders (B5 levels 4/5) live in the same folder: rebuild them too (the folder was just replaced).
+if (Test-Path (Join-Path $src 'paw_boop')) { & (Join-Path $PSScriptRoot 'build_paw_assets.ps1') -Dither $Dither }
+else { Write-Warning "designnim\paw_* not rendered: the paw reminders won't be in assets\lion (run toolsnimate_paw.py)" }

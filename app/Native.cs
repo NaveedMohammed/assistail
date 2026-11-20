@@ -184,6 +184,30 @@ namespace Assistail
         [DllImport("ole32.dll")] public static extern int RegisterDragDrop(IntPtr hwnd, IOleDropTarget target);
         [DllImport("ole32.dll")] public static extern int RevokeDragDrop(IntPtr hwnd);
 
+        // --- B5 extras: idle time and "do not disturb" ---
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+        [DllImport("user32.dll")] private static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+        [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);
+
+        /// <summary>Seconds since the last keyboard or mouse input (any app).</summary>
+        public static double IdleSeconds()
+        {
+            var info = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
+            if (!GetLastInputInfo(ref info)) return 0;
+            return unchecked((uint)Environment.TickCount - info.dwTime) / 1000.0;
+        }
+
+        /// <summary>
+        /// Windows says now is a bad time for notifications: busy full-screen app, presentation mode, quiet hours
+        /// or a full-screen store app (QUNS_BUSY, RUNNING_D3D_FULL_SCREEN, PRESENTATION_MODE, QUIET_TIME, APP).
+        /// </summary>
+        public static bool NotificationsSuppressed()
+        {
+            try { return SHQueryUserNotificationState(out int s) == 0 && s is 2 or 3 or 4 or 6 or 7; }
+            catch { return false; }
+        }
+
         public static string ClassOf(IntPtr hwnd)
         {
             var sb = new StringBuilder(256);

@@ -100,6 +100,7 @@ namespace Assistail
             _lion = new LionWindow(_settings);
             _lion.Clicked += OnLionClicked;
             _lion.BubbleClicked += OnBubbleClicked;
+            _lion.BubbleRightClicked += () => _extras?.HandleRightClick(_lion.BubbleTag);
             _lion.FilesDropped += OnFilesDropped;
             _lion.MenuRequested += () => _tray?.ShowMenuAtCursor();
 
@@ -132,11 +133,14 @@ namespace Assistail
                 SetLionSize = size => { _settings.LionSize = size; _settings.Save(); _lion.ApplySize(); },
                 DoTrick = id => _lion.DoTrick(id),
                 SaySomething = AskWhatToSay,
+                FillExtrasMenu = menu => { if (_extras != null) Extras.ExtrasMenu.Fill(menu, _extras, OpenExtras, () => InstallPackFromFile(null), () => _store.Updates(_extras.Packs).Count); },
                 Quit = Quit,
             });
 
             _lion.Start();
             _alerts = new AlertCenter(_settings, _lion, _tray, _tracker);
+            _extras = new Extras.ExtrasEngine(_settings, _lion, _tray, () => _chat?.IsVisible ?? false);
+            _alerts.TaskFinished += () => _settings.AddToCounter("claude-tasks");
             System.Threading.Tasks.Task.Run(Attachments.CleanupOld);
             StartUpdateChecks();
             OfferAlertsOnce();
@@ -167,6 +171,10 @@ namespace Assistail
                         });
                     }
                     else if (trick.StartsWith("drop:")) OnFilesDropped(trick[5..].Split('|'), null);
+                    else if (trick.StartsWith("extra:")) _extras?.TestFire(trick[6..]);
+                    else if (trick is "extras" or "extras:available" or "extras:updates") OpenExtras(trick.Length > 7 ? trick[7..] : "installed");
+                    else if (trick == "extras-check") { _settings.LastExtrasCheck = default; _settings.AnnouncedExtrasUpdates = ""; _ = CheckExtrasAsync(); }
+                    else if (trick.StartsWith("store-install:")) _ = TestStoreInstallAsync(trick[14..]);
                     else if (trick.StartsWith("chat:")) { ShowChat(_tracker?.LastExplorerFolder()); _chat?.SubmitForTest(trick[5..]); }
                     else if (trick.StartsWith("say:")) _lion.Say(trick[4..]);
                     else _lion.DoTrick(trick);
@@ -388,18 +396,59 @@ namespace Assistail
         private bool HandleBubbleAction()
         {
             if (_alerts?.HandleClick() == true) return true;
+            if (_extras?.HandleClick() == true) return true;
             switch (_lion?.BubbleTag)
             {
                 case "update": _lion.DismissBubble(); OfferUpdateInstall(); return true;
                 case "alerts-intro": _lion.DismissBubble(); InstallHooks(null); return true;
+                case "extras-update": _lion.DismissBubble(); OpenExtras("updates"); return true;
             }
             return false;
+        }
+
+        // ================================================================== B5: extras
+
+        private Extras.ExtrasEngine? _extras;
+        private Extras.ExtrasWindow? _extrasWindow;
+        private readonly Extras.ExtrasStore _store = new();
+
+        /// <param name="tab">"installed", "available" (C9 store) or "updates".</param>
+        private void OpenExtras(string tab = "installed")
+        {
+            if (_extras == null) return;
+            if (_extrasWindow != null) { _extrasWindow.Activate(); return; }
+            _extrasWindow = new Extras.ExtrasWindow(_extras, _store, _settings, () => InstallPackFromFile(_extrasWindow), tab);
+            _extrasWindow.Closed += (_, _) => _extrasWindow = null;
+            _extrasWindow.Show();
+            _extrasWindow.Activate();
+        }
+
+        private void InstallPackFromFile(Window? owner)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Install an extras pack",
+                Filter = "Assistail packs (*.zip, extra.json)|*.zip;extra.json|All files|*.*",
+            };
+            if ((owner != null ? dlg.ShowDialog(owner) : dlg.ShowDialog()) == true) InstallPack(dlg.FileName, owner);
+        }
+
+        private void InstallPack(string path, Window? owner)
+        {
+            if (_extras == null) return;
+            string? id = Extras.PackInstaller.InstallWithPrompt(path, owner, pid => _extras.Packs.Find(p => p.Id == pid && p.IsUsable), _store.IsVerified);
+            if (id == null) return;
+            _extras.Reload();
+            var pack = _extras.Packs.Find(p => p.Id == id);
+            if (pack is { IsUsable: true } && _lion != null && !_lion.IsAway)
+                _lion.Say($"New extra: {pack.Title} ✨" + (pack.Routine != null ? $"\nStart it from my menu → Extras." : ""), 8, talk: false);
         }
 
         // ================================================================== A2/A3: drop, clipboard, snip
 
         private void OnFilesDropped(string[] paths, string? text)
         {
+            if (paths.Length == 1 && Extras.PackInstaller.LooksLikePack(paths[0])) { InstallPack(paths[0], null); return; }
             var folders = Array.FindAll(paths, Directory.Exists);
             var files = Array.FindAll(paths, File.Exists);
             if (files.Length == 0 && folders.Length > 0)
@@ -447,10 +496,43 @@ namespace Assistail
             timer.Tick += async (_, _) =>
             {
                 timer.Interval = TimeSpan.FromHours(1);
+                await CheckExtrasAsync();
                 if (!_settings.AutoUpdateCheck || DateTime.Now - _settings.LastUpdateCheck < TimeSpan.FromHours(24)) return;
                 await CheckForUpdatesAsync(manual: false);
             };
             timer.Start();
+        }
+
+        /// <summary>Testing aid (ASSISTAIL_TRICK=store-install:water): download a pack from the catalog and install it.</summary>
+        private async System.Threading.Tasks.Task TestStoreInstallAsync(string id)
+        {
+            if (_store.Entries.Count == 0) Log("Store test: refresh → " + (await _store.RefreshAsync() ?? "ok"));
+            var e = _store.Find(id);
+            if (e == null) { Log($"Store test: {id} not in the catalog"); return; }
+            var (json, error) = await _store.DownloadAsync(e);
+            if (json != null) error = Extras.PackInstaller.InstallJson(json, out _);
+            Log($"Store test: install {id} {e.Version} → {error ?? "ok"}");
+            _extras?.Reload();
+        }
+
+        /// <summary>C9: once a day, look for newer versions of installed packs and mention them once.</summary>
+        private async System.Threading.Tasks.Task CheckExtrasAsync()
+        {
+            if (_extras == null || !_settings.ExtrasOnline || DateTime.Now - _settings.LastExtrasCheck < TimeSpan.FromHours(24)) return;
+            if (!_extras.Packs.Exists(p => p.IsUsable)) return;   // nothing installed: nothing to update
+            string? error = await _store.RefreshAsync();
+            _settings.LastExtrasCheck = DateTime.Now;
+            _settings.Save();
+            if (error != null) return;
+            var updates = _store.Updates(_extras.Packs);
+            string key = string.Join(",", updates.ConvertAll(u => u.Newer.Id + "@" + u.Newer.Version));
+            if (updates.Count == 0 || key == _settings.AnnouncedExtrasUpdates) return;
+            _settings.AnnouncedExtrasUpdates = key;
+            _settings.Save();
+            string names = string.Join(", ", updates.ConvertAll(u => u.Newer.Title));
+            Log($"Extras updates: {key}");
+            if (_lion == null || !_lion.Alert("wave", $"New versions of your extras: {names} ✨\nClick me to see them.", 20, "extras-update"))
+                _tray?.Notify("Extras updates", $"New versions: {names}. Click to see them.", () => OpenExtras("updates"));
         }
 
         /// <summary>Checks GitHub; announces a new version (bubble or tray). Returns a one-line status.</summary>
@@ -568,8 +650,10 @@ namespace Assistail
         private void Quit()
         {
             _alerts?.Dispose();
+            _extras?.Dispose();
             _snipCts?.Cancel();
             _settingsWindow?.Close();
+            _extrasWindow?.Close();
             _chat?.Shutdown();
             _lion?.Close();
             _hotkey?.Dispose();

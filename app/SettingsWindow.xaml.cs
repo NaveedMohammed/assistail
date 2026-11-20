@@ -63,6 +63,7 @@ namespace Assistail
             AlertsBox.IsChecked = settings.ClaudeAlerts;
             RefreshHooks();
             AutoUpdateBox.IsChecked = settings.AutoUpdateCheck;
+            ExtrasOnlineBox.IsChecked = settings.ExtrasOnline;
             StartupBox.IsChecked = TrayIcon.IsStartupEnabled();
 
             Scroller.MaxHeight = Math.Max(380, SystemParameters.WorkArea.Height - 190);   // no scrolling on most screens
@@ -218,6 +219,7 @@ namespace Assistail
             _settings.ChatReadsFolder = ReadsFolderBox.IsChecked == true;
             _settings.ClaudeAlerts = AlertsBox.IsChecked == true;
             _settings.AutoUpdateCheck = AutoUpdateBox.IsChecked == true;
+            _settings.ExtrasOnline = ExtrasOnlineBox.IsChecked == true;
             _settings.Save();
             bool startup = StartupBox.IsChecked == true;
             if (startup != TrayIcon.IsStartupEnabled()) TrayIcon.SetStartup(startup);
