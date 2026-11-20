@@ -119,7 +119,7 @@ rendered 32-bit frames into 256-colour PNGs (one palette per animation), about f
 
 Testing aids: set `ASSISTAIL_TRICK=butterfly` (or `say:Hello`, `settings`, `clip`, `snip`, `drop:C:\path\file.log`,
 `chat:question`, `update-dryrun`, `extra:pomodoro` (fire a pack now), `extras` / `extras:available` / `extras:updates` (open the Extras window), `extra:stretch@5` (fire a pack at an attention level), `extras-check` (look for pack updates now), or a comma list) to run actions at startup,
-`ASSISTAIL_EXTRAS_SPEED=60` to make an extras "minute" one second, `ASSISTAIL_EXTRAS_CATALOG=D:\path	ossistail-extras` to use a local copy of the catalog, `ASSISTAIL_PROFILE=1` to log render timings,
+`ASSISTAIL_EXTRAS_SPEED=60` to make an extras "minute" one second, `ASSISTAIL_EXTRAS_CATALOG=D:\path\to\assistail-extras` to use a local copy of the catalog, `ASSISTAIL_PROFILE=1` to log render timings,
 and `ASSISTAIL_VERSION=2.0.0` to pretend to be an older version. `Assistail.exe --test-hooks install|remove|state`
 (with `CLAUDE_CONFIG_DIR` pointing at a scratch folder) exercises the hook installer.
 
