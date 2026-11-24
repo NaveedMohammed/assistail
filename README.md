@@ -37,6 +37,8 @@ A bright-eyed, bushy-tailed coding partner that lives on your Windows taskbar an
 
 More animals are planned. The app is built to host different buddies.
 
+<p align="center"><img src="docs/cat.gif" width="260" alt="The calico cat buddy waving with the plaid cloth tied on his paw"><br><sub>The calico cat, the first extra buddy</sub></p>
+
 ## Install
 
 1. Download the latest **`Assistail-x.y.z.zip`** from the [Releases](../../releases) page and unzip it.
