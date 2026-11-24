@@ -20,20 +20,20 @@ namespace Assistail
     }
 
     /// <summary>
-    /// Loads the pre-rendered lion frames (embedded resources) and decodes them at display size.
-    /// Only "idle" plus the current animation stay decoded, to keep memory low.
+    /// Loads a buddy's pre-rendered frames (the built-in lion or a buddy pack, see <see cref="Buddy"/>) and decodes
+    /// them at display size. Only "idle" plus the current animation stay decoded, to keep memory low.
     /// </summary>
     public sealed class SpritePlayer
     {
         private readonly Dictionary<string, LionAnim> _anims = new();
         private readonly Dictionary<string, uint[][]> _decoded = new();
         private int _decodeWidth;
+        public Buddy Buddy { get; }
 
-        public SpritePlayer()
+        public SpritePlayer(Buddy buddy)
         {
-            var res = Application.GetResourceStream(new Uri("pack://application:,,,/lion/lion.json"))
-                      ?? throw new InvalidOperationException("lion.json resource missing");
-            using var doc = JsonDocument.Parse(res.Stream);
+            Buddy = buddy;
+            using var doc = buddy.OpenAnims();
             foreach (var p in doc.RootElement.EnumerateObject())
             {
                 var e = p.Value;
@@ -84,12 +84,21 @@ namespace Assistail
         private uint[] Load(string state, int index)
         {
             var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.UriSource = new Uri($"pack://application:,,,/lion/{state}/f_{index + 1:D4}.png");
-            bmp.DecodePixelWidth = DecodeWidth;
-            bmp.DecodePixelHeight = DecodeWidth;
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.EndInit();
+            try
+            {
+                using var stream = Buddy.OpenImage($"{state}/f_{index + 1:D4}.png");
+                bmp.BeginInit();
+                bmp.StreamSource = stream;
+                bmp.DecodePixelWidth = DecodeWidth;
+                bmp.DecodePixelHeight = DecodeWidth;
+                bmp.CacheOption = BitmapCacheOption.OnLoad;   // decoded now, so the stream can close
+                bmp.EndInit();
+            }
+            catch (Exception ex)
+            {
+                App.Log($"Frame {state}/{index + 1} of {Buddy.Id} couldn't be loaded: {ex.Message}");
+                return new uint[DecodeWidth * DecodeWidth];   // a blank frame rather than a crash
+            }
             var pbgra = new FormatConvertedBitmap(bmp, System.Windows.Media.PixelFormats.Pbgra32, null, 0);
             int w = pbgra.PixelWidth, h = pbgra.PixelHeight;
             var px = new uint[DecodeWidth * DecodeWidth];

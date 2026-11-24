@@ -44,6 +44,8 @@
                         <StackPanel x:Name="PackList"/>
                         <TextBlock x:Name="EmptyText" Style="{StaticResource Hint}" FontSize="13" Margin="0,4,0,0" Visibility="Collapsed"
                                    Text="No extras installed yet. Have a look in “Available”, or drop a pack (.zip) on your buddy."/>
+                        <TextBlock Text="Buddies" Style="{StaticResource Label}" FontWeight="SemiBold" FontSize="14.5" Margin="0,14,0,6"/>
+                        <StackPanel x:Name="BuddyList"/>
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                             <Button Content="Install from file…" Style="{StaticResource Flat}" Click="Install_Click"/>
                             <Button Content="Open extras folder" Style="{StaticResource Flat}" Margin="8,0,0,0" Click="OpenFolder_Click"/>

@@ -13,7 +13,7 @@ namespace Assistail
     /// </summary>
     public sealed class LionWindow : IDisposable
     {
-        private enum Mode { Sitting, Leaving, Away, Arriving, Strolling, Chasing, Playing }
+        private enum Mode { Sitting, Leaving, Away, Arriving, Strolling, Chasing, Playing, ClothPlay }
 
         public static readonly (string Id, string Label)[] Tricks =
         {
@@ -28,8 +28,8 @@ namespace Assistail
         private static readonly TimeSpan SleepAfter = TimeSpan.FromMinutes(10);
 
         private readonly Settings _settings;
-        private readonly SpritePlayer _player = new();
-        private readonly SpritePlayer _butterflySprites = new();
+        private SpritePlayer _player;
+        private readonly SpritePlayer _butterflySprites = new(Buddy.Lion);   // the butterfly's frames ship with the app
         private readonly DispatcherTimer _clock;
         private readonly LayeredSurface _surface;
         private readonly LayeredSurface _butterfly;
@@ -112,6 +112,8 @@ namespace Assistail
         public LionWindow(Settings settings)
         {
             _settings = settings;
+            // ASSISTAIL_BUDDY=<id>: testing aid, starts with that buddy without changing the settings.
+            _player = new SpritePlayer(Buddy.Find(Environment.GetEnvironmentVariable("ASSISTAIL_BUDDY") ?? settings.Buddy));
             _mode = settings.LionVisible ? Mode.Sitting : Mode.Away;
             _surface = new LayeredSurface("AssistailLion", WndProc);
             _butterfly = new LayeredSurface("AssistailButterfly");
@@ -186,12 +188,60 @@ namespace Assistail
             if (_mode == Mode.Away) return;
             Layout(force: true);
             Play("idle");
+            var (hx, hy, _) = HeadPx();
+            App.Log($"Buddy '{Buddy.Id}' at x={_centerPx:0}, head at ({hx:0},{hy:0})");
             _surface.Show();
             Render(force: true);
             _clock.Start();
         }
 
         public void UpdateName() { /* the name is shown in the tray tooltip, chat, menus and speech */ }
+
+        // ================================================================== B1: which buddy
+
+        public Buddy Buddy => _player.Buddy;
+        public event Action<Buddy>? BuddyChanged;
+
+        /// <summary>The tricks for the menu and the trick hotkey: the shared ones (with this buddy's labels) + his own.</summary>
+        public System.Collections.Generic.List<(string Id, string Label)> TrickList
+        {
+            get
+            {
+                var list = new System.Collections.Generic.List<(string, string)>();
+                foreach (var (id, label) in Tricks) list.Add((id, Buddy.Label(id, label)));
+                if (Buddy.Has("cloth") && _player.Has("untie_success")) list.Insert(5, ("untie", "Try to untie the cloth"));
+                return list;
+            }
+        }
+
+        /// <summary>Swaps in another buddy with a little hop (keeps his spot, name and settings).</summary>
+        public void SetBuddy(Buddy buddy)
+        {
+            if (buddy.Id == Buddy.Id) return;
+            App.Log($"Buddy: {Buddy.Id} -> {buddy.Id}");
+            EndClothGame();
+            if (_mode is Mode.Strolling or Mode.Chasing or Mode.Playing)
+            {
+                _butterfly.Hide();
+                _walking = false; _walkSpeedMul = 1; _homing = false; _awayFromSpot = false; _visitTag = null;
+                _mode = Mode.Sitting;
+                _flip = false;
+            }
+            _player = new SpritePlayer(buddy);
+            // The old buddy may be mid-way through an animation the new one doesn't have (the cat's untie, a lick…):
+            // start from idle before anything draws, and drop callbacks that belong to the old animation.
+            _state = "idle"; _frame = 0; _frameStep = 1; _reverse = false; _onDone = null;
+            _clothSprites = null;
+            _settings.Buddy = buddy.Id;
+            _settings.Save();
+            _lastDrawn = default;
+            Layout(force: true);
+            if (_mode == Mode.Away) { BuddyChanged?.Invoke(buddy); return; }
+            Touch();
+            Play("landing", () => Play("happy", () => Play("idle")));   // plops in, then a happy hop
+            Render(force: true);
+            BuddyChanged?.Invoke(buddy);
+        }
         public void ApplySize() => Layout(force: true);
 
         public System.Drawing.Rectangle BodyBoundsPx
@@ -218,6 +268,7 @@ namespace Assistail
         public void DoTrick(string id)
         {
             if (_dragging || _mode is Mode.Away or Mode.Leaving or Mode.Arriving) return;
+            if (_clothOff) EndClothGame();
             if (_mode != Mode.Sitting)
             {
                 // Another moving trick is running: stop it, sit down, then do the new one.
@@ -239,6 +290,9 @@ namespace Assistail
                 case "walk_around": StartStroll(); break;
                 case "chase": StartChase(); break;
                 case "butterfly": StartButterfly(); break;
+                case "untie": TryUntie(); break;
+                case "untie_success": TryUntie(true); break;     // (forced outcomes: testing aid / packs)
+                case "untie_giveup": TryUntie(false); break;
                 default: if (_player.Has(id)) Play(id, () => Play("idle")); break;
             }
         }
@@ -310,7 +364,7 @@ namespace Assistail
         private bool StartVisit(string tag, string? trick)
         {
             if (_mode != Mode.Sitting || _dragging) return false;
-            double half = _player["idle"].ShadowW / 2 * _px;
+            double half = EdgeHalfPx();
             double mid = (_ground.Left + _ground.Right) / 2.0;
             // Stop a little short of the centre, on his side of it, so he doesn't stand right in the middle.
             double target = Math.Clamp(mid - Math.Sign(mid - _centerPx) * 120 * _ground.Scale, _ground.Left + half, _ground.Right - half);
@@ -341,6 +395,7 @@ namespace Assistail
 
         public void Leave()
         {
+            EndClothGame();
             if (_mode is Mode.Strolling or Mode.Chasing or Mode.Playing) { _pendingTrick = "__leave"; InterruptTrick(); return; }
             if (_mode != Mode.Sitting || _dragging) return;
             _bubble?.Dismiss();
@@ -385,6 +440,7 @@ namespace Assistail
             if (_drop != null) Native.RevokeDragDrop(_surface.Hwnd);
             _bubble?.Close();
             _butterfly.Dispose();
+            _clothWin?.Dispose();
             _surface.Dispose();
         }
 
@@ -402,6 +458,11 @@ namespace Assistail
 
         private void Play(string state, Action? onDone = null, bool reverse = false)
         {
+            if (_clothOff)
+            {
+                if (_player.Has(state + "_bare")) state += "_bare";              // idle → idle_bare, turn → turn_bare, …
+                else if (!state.EndsWith("_bare") && state != "retie") EndClothGame("Play " + state);   // anything else: the cloth is back on
+            }
             if (!_player.Has(state)) state = "idle";
             _state = state;
             _onDone = onDone;
@@ -489,6 +550,8 @@ namespace Assistail
                 case Mode.Playing: StepButterfly(); break;
                 case Mode.Sitting: StepIdleLife(); break;
             }
+            if (_clothOff) StepCloth();
+            else if (_mode == Mode.Sitting) StepLick();
 
             if (++_housekeepingTick >= (Calm ? 16 : 30)) { _housekeepingTick = 0; Housekeeping(); }   // ~every 2 s
             if (_mode != Mode.Away) Render();
@@ -546,6 +609,7 @@ namespace Assistail
                 RunTrick(next);
                 return;
             }
+            if (_clothOff) return;                       // the cloth game decides what he does
             if (_dragging || _state != "idle") return;
             if (_awayFromSpot && _visitTag == null && _bubble is not { IsVisible: true }) { WalkHome(); return; }
             if (_awayFromSpot) return;
@@ -574,6 +638,7 @@ namespace Assistail
             {
                 ("shake_head", 10), ("jump", 8), ("stretch_yawn", 10), ("tail_chase", 7), ("wave", 8),
                 ("look_roar", 9), ("walk_around", 12), ("butterfly", 8), ("chase", 4), ("talk", _settings.SelfTalk ? 14 : 0),
+                ("untie", Buddy.Has("cloth") ? 9 : 0),
             };
             int total = 0;
             foreach (var o in options) total += o.weight;
@@ -600,12 +665,12 @@ namespace Assistail
                 (null, $"{name} here! Need a hand? Click me."),
                 (null, "*yawn* … long day?"),
                 ("water", "Don't forget to drink some water 💧"),
-                ("stretch", "Time to stretch? I just did! 🦁"),
+                ("stretch", $"Time to stretch? I just did! {Buddy.Emoji}"),
                 (null, "I'm right here if you need me."),
                 (null, "Ask me anything, I'm a good listener."),
                 ("break", "Have you taken a break lately?"),
                 (null, "This taskbar is very comfy."),
-                (null, "Rawr! (that's lion for hello)"),
+                (null, Buddy.Hello),
                 (null, "Need help with some code? Right-click me → Open Claude Code."),
                 (null, "*purrs*"),
             })
@@ -618,7 +683,7 @@ namespace Assistail
         private void StartStroll()
         {
             double range = _ground.Right - _ground.Left;
-            double half = _player["idle"].ShadowW / 2 * _px;
+            double half = EdgeHalfPx();
             double dist = range * (0.08 + _rng.NextDouble() * 0.14);
             int dir = _rng.Next(2) == 0 ? -1 : 1;
             double target = _centerPx + dir * dist;
@@ -688,7 +753,7 @@ namespace Assistail
             if (!_walking) return;   // still turning / standing up
             if ((DateTime.Now - _modeStart).TotalSeconds > ChaseSeconds) { EndChase(); return; }
             Native.GetCursorPos(out var p);
-            double half = _player["idle"].ShadowW / 2 * _px;
+            double half = EdgeHalfPx();
             double target = Math.Clamp(p.X, _ground.Left + half, _ground.Right - half);
             double dx = target - _centerPx;
             double step = WalkSpeedPx * 2.2 / 15;
@@ -777,6 +842,273 @@ namespace Assistail
             _butterfly.KeepOnTop();
         }
 
+        // ================================================================== B1: licking the pointer
+
+        private System.Drawing.Point _lickLast;
+        private int _lickStill;
+        private DateTime _lickAfter = DateTime.MinValue;
+
+        /// <summary>Head centre in screen px while sitting (from the idle frame's framing).</summary>
+        private (double X, double Y, double R) HeadPx()
+        {
+            var idle = _player["idle"];
+            double top = _ground.Y + 4 * _ground.Scale - idle.BaselineY * _px;
+            return (_centerPx, top + 0.40 * _px, 0.2 * _px);
+        }
+
+        /// <summary>When the pointer rests near his face (~0.5 s), he licks it, turning toward it.</summary>
+        private void StepLick()
+        {
+            if (!Buddy.Has("lick") || _dragging || _state != "idle" || DateTime.Now < _lickAfter || _bubble is { IsVisible: true }) { _lickStill = 0; return; }
+            Native.GetCursorPos(out var p);
+            var cur = new System.Drawing.Point(p.X, p.Y);
+            _lickStill = Math.Abs(cur.X - _lickLast.X) + Math.Abs(cur.Y - _lickLast.Y) <= 3 * _ground.Scale ? _lickStill + 1 : 0;
+            _lickLast = cur;
+            var (hx, hy, hr) = HeadPx();
+            double dx = p.X - hx, dy = hy - p.Y, d = Math.Sqrt(dx * dx + dy * dy);
+            if (d > hr * 2.6 || _lickStill < 7) return;
+            string dir;
+            if (d < hr * 0.85) dir = "front";
+            else
+            {
+                double a = Math.Atan2(dy, dx) * 180 / Math.PI;
+                dir = a is >= 20 and < 65 ? "upright" : a is >= 65 and < 115 ? "up" : a is >= 115 and < 160 ? "upleft" : dx < 0 ? "left" : "right";
+            }
+            if (!_player.Has("lick_" + dir)) return;
+            _lickStill = 0;
+            _lickAfter = DateTime.Now.AddSeconds(15);
+            Touch();
+            Play("lick_" + dir, () => Play("idle"));
+        }
+
+        // ================================================================== B1: the cloth game
+        // He gets the cloth off (untie trick). It lies beside him as its own little window. Pick it up and he runs
+        // away from it; corner him and he dodges past (3 times, then he's tired); catch him and he gives in and holds
+        // out his paw; drop the cloth by his paw and he ties it back on. Left alone, he fetches it after a while.
+        // Anything else (chat, a trick, dragging him, sending him away) puts the cloth straight back on.
+
+        private const double ClothFetchAfterSeconds = 150;
+        private const int MaxDodges = 3, DodgeGraceTicks = 12;
+        // Measured from the cat's 360 px frames (fractions of the frame): where the untie drops the cloth, and the
+        // cloth sprite's heap centre when lying (frame 1) and when held (frame 2).
+        private const double DropX = 225 / 360.0, DropY = 294 / 360.0;
+        private const double LyingX = 183 / 360.0, LyingY = 273.6 / 360.0, HeldX = 186 / 360.0, HeldY = 242.4 / 360.0;
+
+        private bool _clothOff;           // the cloth is off his paw (the game is on)
+        private LayeredSurface? _clothWin;
+        private SpritePlayer? _clothSprites;
+        private double _clothX, _clothY, _clothVy;   // the heap's centre on screen (px)
+        private bool _clothHeld, _clothCaught, _clothArmed, _clothEscaped;
+        private int _clothDodges, _clothGrace;
+        private DateTime _clothLeftAlone;
+        private double _dodgeFrom, _dodgeTo;
+        private (int, int, bool) _clothDrawn;
+
+        private void TryUntie(bool? force = null)
+        {
+            if (!Buddy.Has("cloth") || !_player.Has("untie_success")) { Play("idle"); return; }
+            bool success = force ?? _rng.Next(3) == 0;             // about 1 in 3: success feels special
+            Play(success ? "untie_success" : "untie_giveup", success ? StartClothGame : () => Play("idle"));
+        }
+
+        // Lying cloth: on the taskbar's top edge (a little above the paw line, so it isn't half inside the taskbar,
+        // where clicks would go to the taskbar instead).
+        private double ClothRestY() => _ground.Y + 4 * _ground.Scale - _player["idle"].BaselineY * _px + DropY * _px - 0.03 * _px;
+        private double DropPointX() => _centerPx - _player["idle"].CenterX * _px + DropX * _px;
+        // By his paw: near the spot the cloth falls from, kept inside the screen (at the edge it may be just off it).
+        private bool ClothNearPaw() =>
+            Math.Abs(_clothX - Math.Clamp(DropPointX(), _ground.WorkArea.Left + 0.05 * _px, _ground.WorkArea.Right - 0.05 * _px)) < 0.13 * _px;
+
+        private void StartClothGame()
+        {
+            _clothOff = true;
+            _clothSprites ??= new SpritePlayer(Buddy);
+            _clothSprites.SetDecodeWidth(_px);
+            if (_clothWin == null) { _clothWin = new LayeredSurface("AssistailCloth", ClothWndProc); }
+            _clothWin.EnsureSize(_clothSprites.DecodeWidth, _clothSprites.DecodeWidth);
+            _clothX = DropPointX(); _clothY = ClothRestY(); _clothVy = 0;
+            _clothHeld = _clothCaught = _clothArmed = _clothEscaped = false;
+            _clothDodges = 0;
+            _clothLeftAlone = DateTime.Now;
+            _clothDrawn = default;
+            _clothWin.Show();
+            DrawCloth();
+            App.Log($"Cloth game starts: cloth at ({_clothX:0},{_clothY:0}), buddy at {_centerPx:0}");
+            Play("idle");                                          // → idle_bare
+            Say("Ha, got it off! 😼 Try to put it back on me…", 8, "cloth", talk: false);
+        }
+
+        /// <summary>Ends the game at once (the cloth is back on his paw, no animation).</summary>
+        private void EndClothGame([System.Runtime.CompilerServices.CallerMemberName] string why = "")
+        {
+            if (!_clothOff) return;
+            App.Log($"Cloth game ends ({why}, state {_state})");
+            _clothOff = false;
+            if (_clothHeld) { _clothHeld = false; Native.ReleaseCapture(); }
+            _clothWin?.Hide();
+            if (_mode == Mode.ClothPlay) { _mode = Mode.Sitting; _flip = false; SaveSpot(); }
+            if (_bubble is { IsVisible: true } && _bubbleTag == "cloth") _bubble.Dismiss();
+        }
+
+        private void DrawCloth()
+        {
+            if (_clothWin == null || _clothSprites == null) return;
+            int n = _clothSprites.DecodeWidth;
+            double ox = _clothHeld ? HeldX : LyingX, oy = _clothHeld ? HeldY : LyingY;
+            var sig = ((int)Math.Round(_clothX), (int)Math.Round(_clothY), _clothHeld);
+            if (sig == _clothDrawn) { return; }
+            _clothDrawn = sig;
+            _clothWin.Clear();
+            _clothWin.Blit(_clothSprites.Frame("cloth", _clothHeld ? 1 : 0), n, n, 0, 0, false, n);
+            _clothWin.Push((int)Math.Round(_clothX - ox * n), (int)Math.Round(_clothY - oy * n));
+            _clothWin.KeepOnTop();
+        }
+
+        private void StandFacingBare(int dir, Action then) { _flip = dir < 0; Play("turn", () => Play("stand_up", then)); }   // → *_bare
+
+        private void SitDownBare(Action? then = null)
+        {
+            _mode = Mode.ClothPlay;
+            Play("stand_up", () => Play("turn", () => { _flip = false; _mode = Mode.Sitting; SaveSpot(); Play("idle"); then?.Invoke(); }, reverse: true), reverse: true);
+        }
+
+        private int _clothTopTick;
+
+        private void StepCloth()
+        {
+            if (_clothWin == null) return;
+            if (++_clothTopTick >= 15) { _clothTopTick = 0; _clothWin.KeepOnTop(); }   // above the taskbar and him
+            double half = EdgeHalfPx(running: true);
+            double left = _ground.Left + half, right = _ground.Right - half;
+            double rest = ClothRestY();
+            if (!_clothHeld && _clothY < rest) { _clothVy += 2.2 * _ground.Scale; _clothY = Math.Min(rest, _clothY + _clothVy); }
+            if (_clothGrace > 0) _clothGrace--;
+            bool settled = !_clothHeld && _clothY >= rest - 0.5;
+            double gap = Math.Abs(_clothX - _centerPx);
+            int away = _clothX > _centerPx ? -1 : 1;
+            bool cornered = (away < 0 && _centerPx <= left + 1) || (away > 0 && _centerPx >= right - 1);
+            double catchR = 0.26 * _px, fleeR = 1.0 * _px, safeR = 1.45 * _px;
+            if (_clothHeld && gap > catchR + 0.2 * _px) _clothEscaped = true;
+            bool canCatch = _clothHeld && !_clothCaught && _clothGrace <= 0 && _clothEscaped && gap < catchR;
+
+            if (_mode == Mode.Sitting && _state == "idle_bare" && !_dragging)
+            {
+                if (settled && !_clothArmed && ClothNearPaw() && (DateTime.Now - _clothLeftAlone).TotalSeconds > ClothFetchAfterSeconds)
+                    _clothArmed = true;                                         // left alone long enough: ties it on himself
+                if (settled && _clothArmed && ClothNearPaw())
+                {
+                    _clothWin.Hide();
+                    if (_bubble is { IsVisible: true } && _bubbleTag == "cloth") _bubble.Dismiss();
+                    App.Log("Cloth: retie");
+                    Play("retie", () => { _clothOff = false; Play("idle"); });
+                    return;
+                }
+                if (_clothHeld && !_clothCaught)
+                {
+                    if (canCatch || (cornered && _clothGrace <= 0 && (_clothDodges >= MaxDodges || gap < catchR))) { GiveIn(); Play("caught_bare", () => Play("idle")); }
+                    else if (gap < fleeR && (!cornered || _clothDodges < MaxDodges)) { _mode = Mode.ClothPlay; StandFacingBare(away, () => Play("run_bare")); }
+                }
+                else if (settled && !ClothNearPaw() && (DateTime.Now - _clothLeftAlone).TotalSeconds > ClothFetchAfterSeconds)
+                {
+                    _mode = Mode.ClothPlay;
+                    StandFacingBare(_clothX - (DropPointX() - _centerPx) > _centerPx ? 1 : -1, () => Play("walk_bare"));
+                }
+            }
+            else if (_mode == Mode.ClothPlay && _state == "run_bare")
+            {
+                _flip = away < 0;
+                double step = WalkSpeedPx * 2.8 / 15;
+                _centerPx = Math.Clamp(_centerPx + away * step, left, right);
+                bool nowCornered = (away < 0 && _centerPx <= left + 1) || (away > 0 && _centerPx >= right - 1);
+                if (canCatch) { GiveIn(); SitDownBare(() => Play("caught_bare", () => Play("idle"))); }
+                else if (!_clothHeld || gap > safeR) SitDownBare();
+                else if (nowCornered)
+                {
+                    if (_clothDodges < MaxDodges && gap > 0.12 * _px)
+                    {
+                        _clothDodges++;
+                        App.Log($"Cloth: dodge {_clothDodges}");
+                        _dodgeFrom = _centerPx;
+                        _dodgeTo = Math.Clamp(_clothX - away * 0.5 * _px, left, right);   // lands past the cloth
+                        _flip = -away < 0;
+                        Play("dodge_bare", () => { _clothEscaped = true; _clothGrace = DodgeGraceTicks; if (_clothHeld) Play("run_bare"); else SitDownBare(); });
+                    }
+                    else { GiveIn(); SitDownBare(() => Play("caught_bare", () => Play("idle"))); }
+                }
+            }
+            else if (_mode == Mode.ClothPlay && _state == "dodge_bare")
+            {
+                double u = Math.Clamp((_frame - 3) / 8.0, 0, 1);                   // airborne between frames 3 and 11
+                _centerPx = _dodgeFrom + (_dodgeTo - _dodgeFrom) * (0.5 - 0.5 * Math.Cos(Math.PI * u));
+            }
+            else if (_mode == Mode.ClothPlay && _state == "walk_bare")              // fetching it himself
+            {
+                double target = Math.Clamp(_clothX - (DropPointX() - _centerPx), left, right);
+                double dx = target - _centerPx, step = WalkSpeedPx / 15;
+                _flip = dx < 0;
+                if (_clothHeld) Play("run_bare");
+                else if (Math.Abs(dx) <= step) { _centerPx = target; _clothArmed = true; SitDownBare(); }
+                else _centerPx += Math.Sign(dx) * step;
+            }
+            DrawCloth();
+        }
+
+        private void GiveIn()
+        {
+            _clothCaught = true;
+            App.Log($"Cloth: caught (dodges {_clothDodges}); paw drop point x={DropPointX():0}");
+            Say("OK, OK… you got me. 🙀 Put it on my paw.", 8, "cloth", talk: false);
+        }
+
+        private const int CWM_SETCURSOR = 0x20, CWM_MOUSEMOVE = 0x200, CWM_LBUTTONDOWN = 0x201, CWM_LBUTTONUP = 0x202, CWM_CAPTURECHANGED = 0x215, CWM_MOUSEACTIVATE = 0x21;
+
+        /// <summary>The cloth window: grab it, carry it anywhere, let go and it drops to the taskbar's edge.</summary>
+        private IntPtr ClothWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            switch (msg)
+            {
+                case CWM_MOUSEACTIVATE: handled = true; return new IntPtr(3);   // MA_NOACTIVATE
+                case CWM_SETCURSOR: Native.SetCursor(_handCursor); handled = true; return new IntPtr(1);
+                case CWM_LBUTTONDOWN:
+                    if (!_clothOff || _state == "retie") break;
+                    _clothHeld = true;
+                    _clothArmed = false;
+                    App.Log("Cloth: picked up");
+                    _clothGrace = DodgeGraceTicks;
+                    if (!_clothCaught) { _clothEscaped = false; _clothDodges = 0; }
+                    _clothLeftAlone = DateTime.Now;
+                    Native.SetCapture(hwnd);
+                    MoveHeldCloth();
+                    if (_bubble is { IsVisible: true } && _bubbleTag == "cloth" && !_clothCaught) _bubble.Dismiss();
+                    Touch();
+                    handled = true;
+                    break;
+                case CWM_MOUSEMOVE:
+                    if (_clothHeld) { MoveHeldCloth(); DrawCloth(); }
+                    break;
+                case CWM_LBUTTONUP:
+                case CWM_CAPTURECHANGED when _clothHeld && lParam != hwnd:
+                    if (!_clothHeld) break;
+                    _clothHeld = false;
+                    App.Log($"Cloth: let go at {_clothX:0} (buddy at {_centerPx:0}, caught {_clothCaught})");
+                    _clothVy = 0;
+                    _clothLeftAlone = DateTime.Now;
+                    _clothArmed = _clothCaught && ClothNearPaw();
+                    if (msg == CWM_LBUTTONUP) Native.ReleaseCapture();
+                    DrawCloth();
+                    handled = true;
+                    break;
+            }
+            return IntPtr.Zero;
+        }
+
+        private void MoveHeldCloth()
+        {
+            Native.GetCursorPos(out var p);
+            _clothX = Math.Clamp(p.X, _ground.WorkArea.Left, _ground.WorkArea.Right);
+            _clothY = Math.Min(ClothRestY(), p.Y + 6 * _ground.Scale);
+        }
+
         // ================================================================== speech bubble
 
         private SpeechBubble CreateBubble()
@@ -863,9 +1195,15 @@ namespace Assistail
 
         // ================================================================== layout
 
+        /// <summary>How close his centre may come to the ends of the taskbar. The lion: his shadow (as before). Pack
+        /// buddies can be wider than their shadow (the cat sitting is ~0.2 of the frame each side), so all of him stays
+        /// on screen; <paramref name="running"/>: on all fours, longer still.</summary>
+        private double EdgeHalfPx(bool running = false) =>
+            Math.Max(_player["idle"].ShadowW / 2, Buddy.IsBuiltIn ? 0 : running ? 0.32 : 0.22) * _px;
+
         private double TargetCenterPx()
         {
-            double half = _player["idle"].ShadowW / 2 * _px;
+            double half = EdgeHalfPx();
             double x = _ground.Left + _settings.LionX * (_ground.Right - _ground.Left);
             return Math.Clamp(x, _ground.Left + half, _ground.Right - half);
         }
@@ -903,6 +1241,7 @@ namespace Assistail
             if (!fullscreen && _hiddenForFullscreen) { _hiddenForFullscreen = false; _surface.Show(); }
             Layout();
             _surface.KeepOnTop();   // the taskbar can come in front when clicked
+            if (_clothOff) _clothWin?.KeepOnTop();   // the cloth stays above him, so clicks near his paw reach it
         }
 
         // ================================================================== mouse
@@ -969,6 +1308,7 @@ namespace Assistail
         private void OnHover()
         {
             Touch();
+            if (_clothOff) return;
             if (_mode == Mode.Sitting && !_dragging && _state is "idle" or "sleep")
                 Play("hover", () => Play("idle"));
         }
@@ -998,6 +1338,7 @@ namespace Assistail
         private void OnMouseDown()
         {
             // A click always wins: stop whatever trick is running and open the chat.
+            if (_mode == Mode.ClothPlay) { Touch(); EndClothGame(); Clicked?.Invoke(); return; }
             if (_mode is Mode.Playing or Mode.Strolling or Mode.Chasing or Mode.Arriving)
             {
                 Touch();
@@ -1028,7 +1369,7 @@ namespace Assistail
             }
             if (_dragging)
             {
-                double half = _player["idle"].ShadowW / 2 * _px;
+                double half = EdgeHalfPx();
                 _centerPx = Math.Clamp(p.X - _grabOffsetPx, _ground.Left + half, _ground.Right - half);
                 Render();
             }

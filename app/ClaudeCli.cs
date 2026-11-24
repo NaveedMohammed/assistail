@@ -16,9 +16,11 @@ namespace Assistail
     {
         /// <summary>The buddy's name; Claude introduces itself with it.</summary>
         public string BuddyName { get; set; } = "Leo";
+        /// <summary>B1: what he is ("a friendly cartoon lion with a curly mane"), from the current buddy.</summary>
+        public string BuddyPersona { get; set; } = Buddy.Lion.Persona;
 
         private string SystemPrompt =>
-            $"Your name is {BuddyName}. You are the user's desk buddy: a friendly cartoon lion with a curly mane who " +
+            $"Your name is {BuddyName}. You are the user's desk buddy: {BuddyPersona} who " +
             $"sits on their Windows taskbar, powered by Claude. If asked your name, you are {BuddyName}. " +
             "Keep answers short and direct. The chat box shows plain text, so avoid heavy markdown " +
             "(no tables or headings); simple lists and code are fine.";

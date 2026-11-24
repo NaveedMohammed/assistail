@@ -14,5 +14,19 @@
     "toe_beans": true,
     "wrist_curls": false,
     "sign_style": "wood"
+  },
+  "cat": {
+    "note": "Approved cat (2026-11-23): round 7 option O0 = stylized calico S1, darker cream, front legs forward, no outline, plaid cloth tied on the left front paw. Used by tools/stylized_cat.py and tools/animate_cat.py.",
+    "coat": "calico",
+    "cream": "#E6CCA6",
+    "paw_wrap": true,
+    "ao": 0.4,
+    "outline": 0.0,
+    "paw": {
+      "note": "Approved cat paw (2026-11-23): P3, the plaid cloth as a full mitten over the paw (+ the wrist band and knot). Used by tools/cat_paw.py and tools/animate_paw.py with buddy=cat.",
+      "cloth": "mitten",
+      "pad_color": "#E9A1A6",
+      "sign_style": "wood"
+    }
   }
 }

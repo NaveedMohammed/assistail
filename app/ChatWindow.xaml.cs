@@ -202,6 +202,15 @@ namespace Assistail
             _cli.BuddyName = name;
         }
 
+        /// <summary>B1: the buddy changed (his description for Claude, his emoji).</summary>
+        public void SetBuddy(Buddy buddy)
+        {
+            _cli.BuddyPersona = buddy.Persona;
+            _emoji = buddy.Emoji;
+        }
+
+        private string _emoji = Buddy.Lion.Emoji;
+
         /// <summary>
         /// Shows the chat with an optional folder context. With <paramref name="lionPx"/> (the lion's body in
         /// physical pixels) it opens beside the lion on the side with more room; otherwise centred on the mouse's monitor.
@@ -259,7 +268,7 @@ namespace Assistail
             {
                 EmptyHint.Visibility = Visibility.Collapsed;
                 AddUserMessage(text);
-                AddAssistantMessage("I'm back! 🦁");
+                AddAssistantMessage($"I'm back! {_emoji}");
                 Input.Clear();
                 ReturnRequested?.Invoke();
                 return true;

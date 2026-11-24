@@ -12,6 +12,9 @@ namespace Assistail
         /// <summary>The buddy's name, chosen by the user on first launch. Empty = not chosen yet.</summary>
         public string BuddyName { get; set; } = "";
 
+        /// <summary>B1: which buddy sits on the taskbar: "lion" (built in) or an installed buddy pack's id.</summary>
+        public string Buddy { get; set; } = "lion";
+
         /// <summary>Whether the lion is on the taskbar (false = sent away).</summary>
         public bool LionVisible { get; set; } = true;
 

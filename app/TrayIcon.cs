@@ -18,6 +18,10 @@ namespace Assistail
         public Action Rename = () => { };
         public Action<string> SetLionSize = _ => { };
         public Action<string> DoTrick = _ => { };
+        /// <summary>B1: the current buddy's tricks (id, label), read each time the menu opens.</summary>
+        public Func<System.Collections.Generic.IReadOnlyList<(string Id, string Label)>> Tricks = () => LionWindow.Tricks;
+        /// <summary>B1: fills the Buddy submenu (Lion, installed buddies, get more) each time the menu opens.</summary>
+        public Action<ToolStripMenuItem> FillBuddyMenu = _ => { };
         public Action NextTrick = () => { };
         public Action SaySomething = () => { };
         public Action OpenSettings = () => { };
@@ -74,9 +78,11 @@ namespace Assistail
             var nextTrickItem = new ToolStripMenuItem("Next trick", null, (_, _) => a.NextTrick()) { Font = new Font(_menu.Font, System.Drawing.FontStyle.Bold) };
             tricksMenu.DropDownItems.Add(nextTrickItem);
             tricksMenu.DropDownItems.Add(new ToolStripSeparator());
-            foreach (var (id, label) in LionWindow.Tricks)
-                tricksMenu.DropDownItems.Add(new ToolStripMenuItem(label, null, (_, _) => a.DoTrick(id)));
+            // The trick items are added when the menu opens (they depend on the buddy).
             var sayItem = new ToolStripMenuItem("Say something…", null, (_, _) => a.SaySomething());
+
+            var buddyMenu = new ToolStripMenuItem("Buddy");
+            buddyMenu.DropDownItems.Add(new ToolStripMenuItem("(loading)"));   // filled when the menu opens
 
             var quirksMenu = new ToolStripMenuItem("Quirks when idle");
             foreach (var (label, value) in new[] { ("Often", "Often"), ("Sometimes", "Sometimes"), ("Rarely", "Rarely"), ("Off", "Off") })
@@ -129,7 +135,7 @@ namespace Assistail
             {
                 chatItem, openItem, browseItem, clipItem, snipItem, new ToolStripSeparator(),
                 tricksMenu, sayItem, extrasMenu, new ToolStripSeparator(),
-                awayItem, renameItem, sizeMenu, quirksMenu, new ToolStripSeparator(),
+                awayItem, renameItem, sizeMenu, buddyMenu, quirksMenu, new ToolStripSeparator(),
                 modelMenu, alertsMenu, startupItem, new ToolStripMenuItem("Settings…", null, (_, _) => a.OpenSettings()), new ToolStripSeparator(),
                 updateItem, checkItem,
                 new ToolStripMenuItem("Help && user guide", null, (_, _) => OpenGuide()),
@@ -154,6 +160,10 @@ namespace Assistail
                     if (m is ToolStripMenuItem mi && mi.Tag is string v) mi.Checked = v == _settings.QuirkFrequency;
                 selfTalkItem.Checked = _settings.SelfTalk;
                 tricksMenu.Enabled = sayItem.Enabled = !a.LionIsAway();
+                while (tricksMenu.DropDownItems.Count > 2) tricksMenu.DropDownItems.RemoveAt(2);
+                foreach (var (id, label) in a.Tricks())
+                    tricksMenu.DropDownItems.Add(new ToolStripMenuItem(label, null, (_, _) => a.DoTrick(id)));
+                a.FillBuddyMenu(buddyMenu);
                 sayItem.Text = $"Make {name} say something…";
                 foreach (ToolStripItem m in modelMenu.DropDownItems)
                     if (m is ToolStripMenuItem mi && mi.Tag is string alias) mi.Checked = alias == _settings.Model;

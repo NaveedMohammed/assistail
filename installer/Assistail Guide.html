@@ -187,6 +187,23 @@
 <p class="muted">He asks Claude to answer as him, so asking “what's your name?” in the chat gets his name back.</p>
 
 <!-- ================================================================== -->
+<h3 id="buddies">Other buddies</h3>
+<p>Prefer a different buddy? Right-click him → <em>Buddy</em> → <em>Get more buddies…</em> opens the store's <em>Available</em> tab, where
+   you can install one (it downloads once, about 17 MB, from the official catalog on GitHub and is checked against the catalog's signature).
+   Switch between the lion and your buddies any time from <em>Buddy</em>, or in <em>Extras → Installed</em>, where you can also remove them.
+   His name, size, spot and settings stay the same.</p>
+<p>🐱 <strong>The calico cat</strong> has a green plaid cloth tied on his paw (he waves with it). Some extra things he does:</p>
+<ul>
+  <li><strong>Untying the cloth</strong> (a random quirk, or <em>Tricks → Try to untie the cloth</em>): he tugs at it with his teeth and his other paw.
+      Usually he gives up with a sigh; sometimes it comes off, and he puts his bare paw in his mouth.</li>
+  <li><strong>Chase him with it</strong>: once it's off, the cloth lies beside him. Pick it up and he runs away from it; corner him at the edge
+      and he leaps past you (three times, then he's out of breath). When you catch him he holds out his paw: drop the cloth right next to it
+      and he ties it back on. Leave it alone for a few minutes and he fetches it himself. Anything else (a chat, a trick, dragging him)
+      puts it straight back on.</li>
+  <li><strong>Licking your pointer</strong>: hold the pointer still near his face and he licks it, turning toward it.</li>
+</ul>
+
+<!-- ================================================================== -->
 <h2 id="chat">4. Quick chat</h2>
 <p>Click the lion, press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> anywhere, or left-click the tray icon. The chat opens next to
    the lion (or in the middle of the screen if he's away). Type a question and the reply streams in.</p>
@@ -451,6 +468,8 @@
   <li><strong>Extras:</strong> when you open <em>Extras → Available</em>, and once a day if you have packs installed, it downloads the extras
       catalog's list from <code>raw.githubusercontent.com</code> (or its mirror <code>cdn.jsdelivr.net</code>), plus any pack you install.
       Turn it off in <em>Settings → Updates</em> or in the Extras window.</li>
+  <li><strong>Buddies:</strong> only when you install or update one, its pack is downloaded from the catalog's releases on <code>github.com</code>
+      and checked against the signed list before anything in it is opened.</li>
 </ul>
 
 <h3>What gets installed</h3>
@@ -458,7 +477,7 @@
 <table>
   <tr><th>Location</th><th>Purpose</th></tr>
   <tr><td><code>%LOCALAPPDATA%\Programs\Assistail</code></td><td>The app, icon, this guide, uninstaller</td></tr>
-  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings, log file, attachment copies (deleted on New chat or quit), your extras packs (<code>extras</code>) and the saved extras catalog list, and a backup of Claude Code's settings while alerts are set up</td></tr>
+  <tr><td><code>%LOCALAPPDATA%\Assistail</code></td><td>Settings, log file, attachment copies (deleted on New chat or quit), your extras packs (<code>extras</code>), buddies you installed (<code>buddies</code>) and the saved extras catalog list, and a backup of Claude Code's settings while alerts are set up</td></tr>
   <tr><td><code>%USERPROFILE%\.claude\settings.json</code></td><td>Two hook entries for Claude Code alerts (only if you set them up)</td></tr>
   <tr><td><code>HKCU\Software\Classes\Directory\…\shell\ClaudeCodeHere</code><br><code>HKCU\Software\Classes\Drive\shell\ClaudeCodeHere</code></td><td>Right-click menu item</td></tr>
   <tr><td><code>HKCU\…\CurrentVersion\Uninstall\Assistail</code></td><td>Entry in Settings → Apps</td></tr>
@@ -467,7 +486,7 @@
 </table>
 <p>Windows updates won't break it, because it only uses standard, long-supported Windows features. Uninstalling removes everything in the table above.</p>
 
-<footer>Assistail 2.3 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
+<footer>Assistail 2.5 · A personal tool built on top of Claude Code. Not an official Anthropic product.</footer>
 </div>
 </body>
 </html>

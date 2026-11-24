@@ -3,6 +3,7 @@ B5 levels 4 and 5: renders the paw animations as transparent PNG frames + a JSON
 
   blender -b -P tools/animate_paw.py -- '{"anim": "boop", "outdir": "design/anim"}'
   blender -b -P tools/animate_paw.py -- '{"anim": "sign", "outdir": "design/anim"}'
+  blender -b -P tools/animate_paw.py -- '{"anim": "boop", "outdir": "design/cat-anim", "buddy": "cat"}'   (the cat's paw)
 
 boop  -> <outdir>/paw_boop/f_####.png   rise from below, wind up, press on the glass (squish), hold, pull back down
          <outdir>/paw_boop/print.png    the paw print the pads leave (flat colour, same framing as the press)
@@ -40,6 +41,8 @@ def ease(t):
 def build(p, view):
     """Builds the approved paw (and the sign) and the scene; returns (root, camera, pad material, objects by name)."""
     design = json.load(open(p["design"], encoding="utf-8")) if os.path.exists(p["design"]) else {}
+    if p.get("buddy") == "cat":
+        return build_cat(p, view, design)
     look = dict(lion.DEFAULTS)
     look.update(design)
     pp = dict(paw.DEFAULTS)
@@ -61,6 +64,26 @@ def build(p, view):
     look["engine"] = "EEVEE"
     lion.setup_scene(look)
     sign = paw.build_sign(pp) if view == "sign" else None
+    return root, bpy.context.scene.camera, pad, sign
+
+
+def build_cat(p, view, design):
+    """The cat's approved paw (tools/cat_paw.py, design/chosen.json -> cat.paw) with the same framing as the lion's."""
+    cat_paw = load("cat_paw")
+    look = dict(cat_paw.scat.DEFAULTS)
+    look.update({k: v for k, v in design["cat"].items() if k != "paw"})
+    cp = dict(cat_paw.DEFAULTS)
+    cp.update({k: v for k, v in design["cat"].get("paw", {}).items() if k in cat_paw.DEFAULTS})
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    pad = cat_paw.build_parts(cp, look, random.Random(cp["seed"]))
+    root = bpy.data.objects.new("paw_root", None)
+    bpy.context.collection.objects.link(root)
+    for o in list(bpy.context.scene.objects):
+        if o is not root and o.parent is None and o.type in {"MESH", "CURVE"}:
+            o.parent = root
+    look["size"] = p["size"]; look["engine"] = "EEVEE"; look["camera"] = "front"
+    lion.setup_scene(look)
+    sign = paw.build_sign({"sign_style": cp["sign_style"]}) if view == "sign" else None
     return root, bpy.context.scene.camera, pad, sign
 
 
@@ -138,6 +161,7 @@ def render_boop(p):
         if o.type not in {"MESH", "CURVE"}:
             continue
         if o.name.startswith(("pad_", "bean")):
+            o.hide_render = False                     # (hidden under the cat's mitten, but they make the print)
             o.data.materials.clear()
             o.data.materials.append(ink)
         else:
@@ -210,8 +234,8 @@ def render_sign(p):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     p = dict(DEFAULTS)
-    if argv:
-        p.update(json.loads(argv[0]))
+    if argv:   # a JSON string, or a path to a .json file (PowerShell 5.1 mangles quotes in native arguments)
+        p.update(json.load(open(argv[0])) if argv[0].endswith(".json") else json.loads(argv[0]))
     if p["anim"] == "sign":
         render_sign(p)
     else:

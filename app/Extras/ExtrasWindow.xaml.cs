@@ -15,6 +15,8 @@ namespace Assistail.Extras
         private readonly ExtrasStore _store;
         private readonly Settings _settings;
         private readonly Action _installFromFile;
+        private readonly Func<string> _currentBuddy;      // B1: id of the buddy on the taskbar
+        private readonly Action<string> _useBuddy;        // B1: switch to a buddy by id
         private bool _busy;                 // a download or install is running
 
         private sealed class Edit
@@ -27,13 +29,16 @@ namespace Assistail.Extras
         }
         private readonly List<Edit> _edits = new();
 
-        public ExtrasWindow(ExtrasEngine engine, ExtrasStore store, Settings settings, Action installFromFile, string tab = "installed")
+        public ExtrasWindow(ExtrasEngine engine, ExtrasStore store, Settings settings, Action installFromFile, string tab = "installed",
+                            Func<string>? currentBuddy = null, Action<string>? useBuddy = null)
         {
             InitializeComponent();
             _engine = engine;
             _store = store;
             _settings = settings;
             _installFromFile = installFromFile;
+            _currentBuddy = currentBuddy ?? (() => "lion");
+            _useBuddy = useBuddy ?? (_ => { });
             OnlineBox.IsChecked = settings.ExtrasOnline;
             // The content grows when a tab fills in: keep the whole window (and its Save button) on the screen.
             SizeChanged += (_, _) =>
@@ -74,7 +79,7 @@ namespace Assistail.Extras
 
         private void UpdateTabTitles()
         {
-            int n = _store.Updates(_engine.Packs).Count;
+            int n = _store.Updates(_engine.Packs).Count + _store.BuddyUpdates().Count;
             TabUpdates.Content = n > 0 ? $"Updates ({n})" : "Updates";
         }
 
@@ -115,6 +120,16 @@ namespace Assistail.Extras
                 StoreStatus.Text = "Packs from the official extras catalog. They're checked against the catalog's signature before they install."
                                    + (error != null ? $"\n{error} Showing the {when}." : when.Length > 0 && _store.FromCache ? $" (Showing the {when}.)" : "");
 
+            // B1: buddies first (they're the bigger news), then the packs
+            var buddies = updates ? _store.BuddyUpdates().ConvertAll(u => u.Newer) : new List<ExtrasStore.BuddyEntry>(_store.Buddies);
+            if (buddies.Count > 0)
+            {
+                StoreList.Children.Add(new TextBlock { Text = "Buddies", Style = S("Label"), FontWeight = FontWeights.SemiBold, FontSize = 14.5, Margin = new Thickness(0, 2, 0, 6) });
+                foreach (var b in buddies) StoreList.Children.Add(BuddyStoreCard(b));
+                if (list.Count > 0) StoreList.Children.Add(new TextBlock { Text = "Extras", Style = S("Label"), FontWeight = FontWeights.SemiBold, FontSize = 14.5, Margin = new Thickness(0, 8, 0, 6) });
+            }
+            if (updates && buddies.Count > 0 && list.Count == 0)
+                StoreStatus.Text = $"{buddies.Count} of your buddies can be updated.";
             foreach (var e in list) StoreList.Children.Add(StoreCard(e));
             UpdateAllButton.Visibility = updates && list.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -150,6 +165,108 @@ namespace Assistail.Extras
             if (e.Description.Length > 0)
                 body.Children.Add(new TextBlock { Text = e.Description, Style = S("Hint"), FontSize = 13, Foreground = (Brush)FindResource("Muted"), Margin = new Thickness(0, 6, 0, 0) });
             return card;
+        }
+
+        // ------------------------------------------------------------------ B1: buddies
+
+        private Border CardBorder(UIElement child) => new()
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x2E, 0x2E, 0x2B)), BorderBrush = new SolidColorBrush(Color.FromRgb(0x3D, 0x3C, 0x38)),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 12),
+            Margin = new Thickness(0, 0, 0, 10), Child = child,
+        };
+
+        private UIElement BuddyStoreCard(ExtrasStore.BuddyEntry e)
+        {
+            var installed = Buddy.Installed().Find(b => b.Id == e.Id && b.IsUsable);
+            var body = new StackPanel();
+            var header = new DockPanel { LastChildFill = true };
+            var button = new Button { Style = S("Flat"), FontSize = 12.5, VerticalAlignment = VerticalAlignment.Top, MinWidth = 110 };
+            bool newer = installed != null && Version.TryParse(installed.Version, out var iv) && e.Ver > iv;
+            if (e.NeedsNewerApp) { button.Content = $"Needs Assistail {e.MinApp}"; button.IsEnabled = false; }
+            else if (installed == null) { button.Content = "Install"; button.Style = S("Primary"); }
+            else if (newer) { button.Content = $"Update to {e.Version}"; button.Style = S("Primary"); }
+            else if (_currentBuddy() == e.Id) { button.Content = "On your taskbar ✓"; button.IsEnabled = false; }
+            else { button.Content = "Use"; button.Click += (_, _) => { _useBuddy(e.Id); BuildStore(); Build(); }; }
+            if (installed == null || newer) button.Click += async (_, _) => await InstallBuddyAsync(e, button);
+            DockPanel.SetDock(button, Dock.Right);
+            header.Children.Add(button);
+            var titles = new StackPanel();
+            titles.Children.Add(new TextBlock { Text = e.Title, Style = S("Label"), FontWeight = FontWeights.SemiBold, FontSize = 14.5 });
+            string by = $"Version {e.Version}" + (e.Author.Length > 0 ? $" · by {e.Author}" : "") + $" · {e.Size / 1048576.0:0.#} MB download"
+                        + (newer ? $" · you have {installed!.Version}" : "");
+            titles.Children.Add(new TextBlock { Text = by, Style = S("Hint"), Margin = new Thickness(0, 1, 0, 0) });
+            header.Children.Add(titles);
+            body.Children.Add(header);
+            if (e.Description.Length > 0)
+                body.Children.Add(new TextBlock { Text = e.Description, Style = S("Hint"), FontSize = 13, Foreground = (Brush)FindResource("Muted"), Margin = new Thickness(0, 6, 0, 0) });
+            return CardBorder(body);
+        }
+
+        private async System.Threading.Tasks.Task InstallBuddyAsync(ExtrasStore.BuddyEntry e, Button button)
+        {
+            if (_busy) return;
+            _busy = true;
+            button.IsEnabled = false;
+            button.Content = "Downloading…";
+            try
+            {
+                var progress = new Progress<double>(p => button.Content = $"Downloading {p:P0}");
+                var (zip, error) = await _store.DownloadBuddyAsync(e, progress);
+                if (zip != null)
+                {
+                    button.Content = "Installing…";
+                    error = await System.Threading.Tasks.Task.Run(() => BuddyInstaller.Install(zip, e.Id));
+                }
+                if (error != null) { ShowStatus($"{e.Name}: {error}"); return; }
+                _useBuddy(e.Id);                     // installed on purpose: put him on the taskbar straight away
+            }
+            finally
+            {
+                _busy = false;
+                if (IsLoaded) { Build(); BuildStore(); }
+            }
+        }
+
+        private void BuildBuddies()
+        {
+            BuddyList.Children.Clear();
+            string current = _currentBuddy();
+            var all = new List<Buddy> { Buddy.Lion };
+            all.AddRange(Buddy.Installed());
+            foreach (var b in all)
+            {
+                var row = new DockPanel { LastChildFill = true };
+                var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+                DockPanel.SetDock(buttons, Dock.Right);
+                if (b.IsUsable)
+                {
+                    var use = new Button { Style = S(b.Id == current ? "Flat" : "Primary"), FontSize = 12.5, MinWidth = 96,
+                                           Content = b.Id == current ? "On your taskbar ✓" : "Use", IsEnabled = b.Id != current };
+                    use.Click += (_, _) => { _useBuddy(b.Id); BuildBuddies(); };
+                    buttons.Children.Add(use);
+                }
+                if (!b.IsBuiltIn)
+                {
+                    var remove = new Button { Style = S("Flat"), FontSize = 12.5, Content = "Remove", Margin = new Thickness(8, 0, 0, 0) };
+                    remove.Click += (_, _) =>
+                    {
+                        if (MessageBox.Show(this, $"Remove {b.Name}? You can install him again from Available.", "Assistail extras",
+                                            MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                        if (b.Id == _currentBuddy()) _useBuddy("lion");
+                        string? err = BuddyInstaller.Remove(b.Id);
+                        if (err != null) ShowStatus($"{b.Name}: {err}");
+                        BuildBuddies();
+                    };
+                    buttons.Children.Add(remove);
+                }
+                row.Children.Add(buttons);
+                var titles = new StackPanel();
+                titles.Children.Add(new TextBlock { Text = $"{b.Emoji} {b.Name}", Style = S("Label"), FontWeight = FontWeights.SemiBold, FontSize = 14.5 });
+                titles.Children.Add(new TextBlock { Text = b.IsBuiltIn ? "Built in" : b.IsUsable ? $"Version {b.Version}" : b.Error, Style = S("Hint"), Margin = new Thickness(0, 1, 0, 0) });
+                row.Children.Add(titles);
+                BuddyList.Children.Add(CardBorder(row));
+            }
         }
 
         private async System.Threading.Tasks.Task<bool> InstallAsync(ExtrasStore.Entry e, Button? button)
@@ -210,6 +327,7 @@ namespace Assistail.Extras
                 _edits.Clear();
                 foreach (var p in _engine.Packs) PackList.Children.Add(Card(p));
                 EmptyText.Visibility = _engine.Packs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                BuildBuddies();
             }
             finally { _building = false; }
         }

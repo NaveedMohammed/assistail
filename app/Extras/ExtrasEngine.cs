@@ -90,6 +90,8 @@ namespace Assistail.Extras
             _paw.RightClicked += tag => HandleRightClick(tag);
             _paw.Finished += (tag, _) => OnBubbleHidden(tag);
             _paw.Booped += () => _lion.ShowExtra("swat", null, 0, "extra-done");   // as if it was his paw
+            _paw.SetBuddy(_lion.Buddy);
+            _lion.BuddyChanged += b => _paw.SetBuddy(b);   // B1: each buddy brings his own paw
             if (!_paw.Available) App.Log("Extras: paw art not found; levels 4 and 5 show as level 3.");
             Reload();
         }

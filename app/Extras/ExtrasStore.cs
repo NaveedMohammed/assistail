@@ -54,7 +54,17 @@ namespace Assistail.Extras
             return c;
         });
 
+        /// <summary>B1: a buddy pack in the catalog. The zip is a GitHub Release asset (Url), checked against Size/Sha256.</summary>
+        public sealed record BuddyEntry(string Id, string Name, string Version, string Author, string Description, string Icon,
+                                        string MinApp, string Url, long Size, string Sha256)
+        {
+            public string Title => (Icon.Length > 0 ? Icon + " " : "") + Name;
+            public Version Ver => System.Version.TryParse(Version, out var v) ? v : new Version(0, 0);
+            public bool NeedsNewerApp => System.Version.TryParse(MinApp, out var m) && m > UpdateService.Current;
+        }
+
         public IReadOnlyList<Entry> Entries { get; private set; } = Array.Empty<Entry>();
+        public IReadOnlyList<BuddyEntry> Buddies { get; private set; } = Array.Empty<BuddyEntry>();
         /// <summary>When the entries were downloaded (from GitHub or the cache's time), or null if none yet.</summary>
         public DateTime? Fetched { get; private set; }
         public bool FromCache { get; private set; }
@@ -72,6 +82,7 @@ namespace Assistail.Extras
                     if (Verify(bytes, File.ReadAllText(CacheSig)) && Parse(bytes) is { } list)
                     {
                         Entries = list;
+                        Buddies = ParseBuddies(bytes);
                         Fetched = File.GetLastWriteTime(CacheFile);
                         FromCache = true;
                     }
@@ -96,6 +107,7 @@ namespace Assistail.Extras
                     var list = Parse(index);
                     if (list == null) { lastError = "The catalog needs a newer Assistail."; continue; }
                     Entries = list;
+                    Buddies = ParseBuddies(index);
                     Fetched = DateTime.Now;
                     FromCache = false;
                     _base = b;
@@ -134,6 +146,57 @@ namespace Assistail.Extras
                 return (null, "The pack couldn't be downloaded. Check your connection and try again.");
             }
         }
+
+        /// <summary>
+        /// B1: downloads a buddy pack zip and checks it against the signed index (size and SHA-256). Returns (zip, null)
+        /// or (null, reason). <paramref name="progress"/> gets 0..1.
+        /// </summary>
+        public async Task<(byte[]? Zip, string? Error)> DownloadBuddyAsync(BuddyEntry e, IProgress<double>? progress = null)
+        {
+            try
+            {
+                if (e.Size <= 0 || e.Size > BuddyInstaller.MaxZipBytes) return (null, "That buddy is too big.");
+                byte[] zip;
+                if (LocalCatalog != null)   // testing aid: the release asset is read from <catalog>/release-assets/<file name>
+                    zip = await File.ReadAllBytesAsync(Path.Combine(LocalCatalog, "release-assets", Path.GetFileName(new Uri(e.Url).LocalPath)));
+                else
+                {
+                    if (!e.Url.StartsWith("https://github.com/NaveedMohammed/assistail-extras/releases/download/", StringComparison.Ordinal))
+                        return (null, "That buddy isn't hosted where the catalog keeps buddies, so it wasn't downloaded.");
+                    using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+                    http.DefaultRequestHeaders.UserAgent.ParseAdd("Assistail-extras");   // nothing personal
+                    using var resp = await http.GetAsync(e.Url, HttpCompletionOption.ResponseHeadersRead);
+                    resp.EnsureSuccessStatusCode();
+                    if (resp.Content.Headers.ContentLength is long len && len != e.Size) return (null, "The download didn't match the catalog, so it wasn't installed.");
+                    using var stream = await resp.Content.ReadAsStreamAsync();
+                    using var ms = new MemoryStream();
+                    var buf = new byte[81920];
+                    int r;
+                    while ((r = await stream.ReadAsync(buf)) > 0)
+                    {
+                        ms.Write(buf, 0, r);
+                        if (ms.Length > e.Size) return (null, "The download didn't match the catalog, so it wasn't installed.");
+                        progress?.Report((double)ms.Length / e.Size);
+                    }
+                    zip = ms.ToArray();
+                }
+                if (zip.Length != e.Size || Hex(SHA256.HashData(zip)) != e.Sha256)
+                    return (null, "The download didn't match the catalog, so it wasn't installed. Try again later.");
+                return (zip, null);
+            }
+            catch (Exception ex)
+            {
+                App.Log($"Extras store: buddy download {e.Id} failed: {ex.Message}");
+                return (null, "The buddy couldn't be downloaded. Check your connection and try again.");
+            }
+        }
+
+        /// <summary>B1: installed buddy packs with a newer version in the catalog (that this app can run).</summary>
+        public List<(Buddy Installed, BuddyEntry Newer)> BuddyUpdates() =>
+            Buddy.Installed().Where(b => b.IsUsable && System.Version.TryParse(b.Version, out _))
+                 .Select(b => (b, Buddies.FirstOrDefault(x => x.Id == b.Id)))
+                 .Where(x => x.Item2 is { NeedsNewerApp: false } e && e.Ver > System.Version.Parse(x.b.Version))
+                 .Select(x => (x.b, x.Item2!)).ToList();
 
         /// <summary>Whether this extra.json is exactly a pack in the signed catalog (for files dropped on the buddy).</summary>
         public bool IsVerified(string json) => Entries.Any(e => e.JsonSha256 == JsonSha(json));
@@ -192,6 +255,25 @@ namespace Assistail.Extras
                 list.Add(new Entry(S("id"), S("name"), S("version"), S("author"), S("description"), S("icon"), S("minApp"), S("kind"),
                                    S("file"), e.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0, S("sha256"), S("json_sha256")));
             }
+            return list;
+        }
+
+        private static List<BuddyEntry> ParseBuddies(byte[] index)
+        {
+            var list = new List<BuddyEntry>();
+            try
+            {
+                using var doc = JsonDocument.Parse(index);
+                if (!doc.RootElement.TryGetProperty("buddies", out var arr) || arr.ValueKind != JsonValueKind.Array) return list;
+                foreach (var e in arr.EnumerateArray())
+                {
+                    string S(string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    var b = new BuddyEntry(S("id"), S("name"), S("version"), S("author"), S("description"), S("icon"), S("minApp"),
+                                           S("url"), e.TryGetProperty("size", out var sz) && sz.ValueKind == JsonValueKind.Number ? sz.GetInt64() : 0, S("sha256"));
+                    if (System.Text.RegularExpressions.Regex.IsMatch(b.Id, "^[a-z0-9][a-z0-9-]{1,39}$") && b.Id != "lion" && b.Sha256.Length == 64) list.Add(b);
+                }
+            }
+            catch (Exception ex) { App.Log("Extras store: buddies unreadable: " + ex.Message); }
             return list;
         }
 

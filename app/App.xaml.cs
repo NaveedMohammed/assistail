@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -103,6 +104,7 @@ namespace Assistail
             _lion.BubbleRightClicked += () => _extras?.HandleRightClick(_lion.BubbleTag);
             _lion.FilesDropped += OnFilesDropped;
             _lion.MenuRequested += () => _tray?.ShowMenuAtCursor();
+            _lion.BuddyChanged += b => _chat?.SetBuddy(b);
 
             _tray = new TrayIcon(_settings, new MenuActions
             {
@@ -132,6 +134,8 @@ namespace Assistail
                 Rename = () => AskForName(firstTime: false),
                 SetLionSize = size => { _settings.LionSize = size; _settings.Save(); _lion.ApplySize(); },
                 DoTrick = id => _lion.DoTrick(id),
+                Tricks = () => _lion.TrickList,
+                FillBuddyMenu = FillBuddyMenu,
                 SaySomething = AskWhatToSay,
                 FillExtrasMenu = menu => { if (_extras != null) Extras.ExtrasMenu.Fill(menu, _extras, OpenExtras, () => InstallPackFromFile(null), () => _store.Updates(_extras.Packs).Count); },
                 Quit = Quit,
@@ -175,6 +179,11 @@ namespace Assistail
                     else if (trick is "extras" or "extras:available" or "extras:updates") OpenExtras(trick.Length > 7 ? trick[7..] : "installed");
                     else if (trick == "extras-check") { _settings.LastExtrasCheck = default; _settings.AnnouncedExtrasUpdates = ""; _ = CheckExtrasAsync(); }
                     else if (trick.StartsWith("store-install:")) _ = TestStoreInstallAsync(trick[14..]);
+                    else if (trick.StartsWith("store-buddy:")) _ = TestBuddyInstallAsync(trick[12..]);
+                    else if (trick.StartsWith("buddy:")) SwitchBuddy(Buddy.Find(trick[6..]));
+                    else if (trick == "leave") _lion.Leave();
+                    else if (trick == "return") _lion.Return();
+                    else if (trick == "wait") { }                      // a 3 s pause in the test sequence
                     else if (trick.StartsWith("chat:")) { ShowChat(_tracker?.LastExplorerFolder()); _chat?.SubmitForTest(trick[5..]); }
                     else if (trick.StartsWith("say:")) _lion.Say(trick[4..]);
                     else _lion.DoTrick(trick);
@@ -230,8 +239,36 @@ namespace Assistail
         private void NextTrick()
         {
             if (_lion == null || _lion.IsAway) return;
-            _trickIndex = (_trickIndex + 1) % LionWindow.Tricks.Length;
-            _lion.DoTrick(LionWindow.Tricks[_trickIndex].Id);
+            var tricks = _lion.TrickList;
+            _trickIndex = (_trickIndex + 1) % tricks.Count;
+            _lion.DoTrick(tricks[_trickIndex].Id);
+        }
+
+        /// <summary>B1: the Buddy submenu: the lion, the installed buddy packs, and a link to get more.</summary>
+        private void FillBuddyMenu(System.Windows.Forms.ToolStripMenuItem menu)
+        {
+            menu.DropDownItems.Clear();
+            if (_lion == null) return;
+            string current = _lion.Buddy.Id;
+            void Add(Buddy b)
+            {
+                var item = new System.Windows.Forms.ToolStripMenuItem($"{b.Emoji} {b.Name}") { Checked = b.Id == current, Enabled = b.IsUsable };
+                if (!b.IsUsable) item.ToolTipText = b.Error;
+                item.Click += (_, _) => SwitchBuddy(b);
+                menu.DropDownItems.Add(item);
+            }
+            Add(Buddy.Lion);
+            foreach (var b in Buddy.Installed()) Add(b);
+            menu.DropDownItems.Add(new System.Windows.Forms.ToolStripSeparator());
+            menu.DropDownItems.Add(new System.Windows.Forms.ToolStripMenuItem("Get more buddies…", null, (_, _) => OpenExtras("available")));
+        }
+
+        private void SwitchBuddy(Buddy b)
+        {
+            if (_lion == null || b.Id == _lion.Buddy.Id) return;
+            var fresh = b.IsBuiltIn ? b : Buddy.Find(b.Id);   // re-read the pack (it may have been updated)
+            if (!fresh.IsUsable || fresh.Id != b.Id) { _tray?.Notify("Assistail", $"{b.Name} can't be used: {b.Error}"); return; }
+            _lion.SetBuddy(fresh);
         }
 
         // ================================================================== shortcuts and settings (C5)
@@ -417,7 +454,8 @@ namespace Assistail
         {
             if (_extras == null) return;
             if (_extrasWindow != null) { _extrasWindow.Activate(); return; }
-            _extrasWindow = new Extras.ExtrasWindow(_extras, _store, _settings, () => InstallPackFromFile(_extrasWindow), tab);
+            _extrasWindow = new Extras.ExtrasWindow(_extras, _store, _settings, () => InstallPackFromFile(_extrasWindow), tab,
+                () => _lion?.Buddy.Id ?? "lion", id => SwitchBuddy(Buddy.Find(id)));
             _extrasWindow.Closed += (_, _) => _extrasWindow = null;
             _extrasWindow.Show();
             _extrasWindow.Activate();
@@ -501,6 +539,18 @@ namespace Assistail
                 await CheckForUpdatesAsync(manual: false);
             };
             timer.Start();
+        }
+
+        /// <summary>Testing aid (ASSISTAIL_TRICK=store-buddy:cat): download a buddy from the catalog, install him and switch to him.</summary>
+        private async System.Threading.Tasks.Task TestBuddyInstallAsync(string id)
+        {
+            Log("Buddy store test: refresh -> " + (await _store.RefreshAsync() ?? "ok") + $", {_store.Buddies.Count} buddies");
+            var e = _store.Buddies.FirstOrDefault(x => x.Id == id);
+            if (e == null) { Log("Buddy store test: not in the catalog"); return; }
+            var (zip, error) = await _store.DownloadBuddyAsync(e);
+            if (zip != null) error = await System.Threading.Tasks.Task.Run(() => BuddyInstaller.Install(zip, id));
+            Log("Buddy store test: " + (error ?? "installed"));
+            if (error == null) SwitchBuddy(Buddy.Find(id));
         }
 
         /// <summary>Testing aid (ASSISTAIL_TRICK=store-install:water): download a pack from the catalog and install it.</summary>
@@ -628,6 +678,7 @@ namespace Assistail
             if (_chat == null)
             {
                 _chat = new ChatWindow(_settings);
+                _chat.SetBuddy(_lion?.Buddy ?? Buddy.Lion);
                 _chat.ReplyStarted += () => _lion?.ChatThinking();
                 _chat.TextStreaming += () => _lion?.ChatTalking();
                 _chat.ReplyFinished += ok => _lion?.ChatDone(ok);

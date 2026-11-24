@@ -30,6 +30,7 @@ A bright-eyed, bushy-tailed coding partner that lives on your Windows taskbar an
 - 🔔 **Claude Code alerts**: when a Claude Code session finishes or needs your permission, he tells you in a bubble ("Done! ✅ my-app"). Click him to jump to that terminal. One click sets up the hooks (and one click removes them).
 - 📎 **Ask about anything**: drop a file on him (a log, a screenshot, a PDF), press `Ctrl+Shift+Alt+V` to ask about what you copied, or `Ctrl+Shift+Alt+S` to snip part of the screen and ask about it.
 - 🍅 **Extras** (optional packs): a Pomodoro focus timer (he keeps quiet while you focus and naps during breaks), stretch, water and eye-break reminders, and an end-of-day nudge with what you got done. Reminders count only active time, wait while you're in full screen or do-not-disturb, and can be snoozed. Packs are plain JSON (no code), installed from the built-in store (*Extras → Get more extras…*), which is a signed catalog on GitHub: [assistail-extras](https://github.com/NaveedMohammed/assistail-extras).
+- 🐱 **More buddies**: swap the lion for another buddy from *Buddy → Get more buddies…*. The first is a calico kitten with a plaid cloth tied on his paw: he tries to pull it off (sometimes he manages, then you can chase him with it and put it back on), and he licks your pointer when you hold it near his face. Buddies are signed packs from the same catalog, installed only from it.
 - ⌨️ **Shortcuts**: `Ctrl+Alt+Space` to chat, `Ctrl+Alt+T` for the next trick, plus the clipboard and snip shortcuts. All can be changed in Settings.
 - ⚙️ **Settings window** with everything in one place, and **automatic updates** (a daily check on GitHub, always asks first, can be turned off).
 - 🔋 **Light on battery**: about 1% of one CPU core when active, less when idle, and zero while the PC is locked or the screen is off.
@@ -110,6 +111,8 @@ rendered 32-bit frames into 256-colour PNGs (one palette per animation), about f
 | `app/Attachments.cs`, `DropTarget.cs` | Files, clipboard and screen snips attached to a chat; drag and drop onto the buddy |
 | `app/ClaudeHooks.cs`, `AlertCenter.cs` | Claude Code alerts: the `--notify` hook helper, the named pipe, installing/removing the hooks, the alert queue |
 | `app/Extras/` | Extras packs: the pack format and validation (`PackModel.cs`), the reminder/routine engine, the paw overlay (sign and boop), the store (`ExtrasStore.cs`: signed index, SHA-256 checked downloads), the Extras menu and window |
+| `app/Buddy.cs`, `app/BuddyInstaller.cs` | Buddies (B1): the built-in lion or an installed buddy pack (frames, manifest, traits), PNG checks before decoding, and the installer that validates every file of a pack in a staging folder |
+| `tools/stylized_cat.py`, `animate_cat.py`, `cat_paw.py`, `render_cat_anims.ps1`, `build_cat_pack.ps1` | The cat buddy: model, animations (same state names as the lion, plus the cloth and lick states), paw reminders, rendering and the pack zip |
 | `tools/ExtrasCatalog/` | Builds and signs the extras catalog (the [assistail-extras](https://github.com/NaveedMohammed/assistail-extras) repo); `check` validates packs with the app's own rules |
 | `tools/paw.py`, `animate_paw.py`, `build_paw_assets.ps1` | The paw for the sign and boop reminders |
 | `app/UpdateService.cs` | Update check (GitHub Releases), download, SHA-256 check, quiet install |
@@ -119,6 +122,7 @@ rendered 32-bit frames into 256-colour PNGs (one palette per animation), about f
 
 Testing aids: set `ASSISTAIL_TRICK=butterfly` (or `say:Hello`, `settings`, `clip`, `snip`, `drop:C:\path\file.log`,
 `chat:question`, `update-dryrun`, `extra:pomodoro` (fire a pack now), `extras` / `extras:available` / `extras:updates` (open the Extras window), `extra:stretch@5` (fire a pack at an attention level), `extras-check` (look for pack updates now), or a comma list) to run actions at startup,
+`ASSISTAIL_BUDDY=cat` to start with an installed buddy (without changing the settings), tricks `buddy:cat` (switch), `store-buddy:cat` (install from the catalog and switch), `untie_success` / `untie_giveup` (the cat's untie with a fixed outcome),
 `ASSISTAIL_EXTRAS_SPEED=60` to make an extras "minute" one second, `ASSISTAIL_EXTRAS_CATALOG=D:\path\to\assistail-extras` to use a local copy of the catalog, `ASSISTAIL_PROFILE=1` to log render timings,
 and `ASSISTAIL_VERSION=2.0.0` to pretend to be an older version. `Assistail.exe --test-hooks install|remove|state`
 (with `CLAUDE_CONFIG_DIR` pointing at a scratch folder) exercises the hook installer.

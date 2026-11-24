@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -16,11 +17,11 @@ namespace Assistail.Extras
     /// holds, slides out. 5 "boop": the paw rises from the bottom of the screen and boops the glass, leaving a paw
     /// print with the message under it that fades away. Only the paw, board, print and message catch clicks
     /// (fully transparent pixels pass through), it never takes focus, and it only animates while it's on screen.
-    /// The frames come from the buddy's asset folder (lion/paw.json), so another buddy can bring its own paw.
+    /// The frames come from the buddy (the lion's lion/paw.json, or a buddy pack's paw.json), so each buddy has its own paw.
     /// </summary>
     public sealed class PawOverlay : IDisposable
     {
-        private const string Buddy = "lion";            // asset folder of the current buddy (B1: per buddy)
+        private Buddy _buddy = Buddy.Lion;              // B1: whose paw (each buddy brings its own paw.json + frames)
         private const double SignHoldSeconds = 9, BoopHoldSeconds = 6, FadeSeconds = 1.2;
         /// <summary>Where the pads touch the glass in the boop frames (fraction of the frame height, from paw_boop/print.png).</summary>
         private const double BoopPadsY = 0.32;
@@ -66,15 +67,32 @@ namespace Assistail.Extras
             _surface = new LayeredSurface("AssistailPaw", WndProc);
             _timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(1000.0 / 15) };
             _timer.Tick += (_, _) => Tick();
+            LoadAnims();
+        }
+
+        /// <summary>B1: switches to another buddy's paw (stops a paw that's showing).</summary>
+        public void SetBuddy(Buddy buddy)
+        {
+            if (buddy == _buddy) return;
+            Stop(raise: true);
+            _buddy = buddy;
+            _frames.Clear();
+            LoadAnims();
+        }
+
+        private void LoadAnims()
+        {
+            _anims.Clear();
             try
             {
-                var res = Application.GetResourceStream(new Uri($"pack://application:,,,/{Buddy}/paw.json"));
-                if (res == null) return;
-                using var doc = JsonDocument.Parse(res.Stream);
+                using var stream = _buddy.OpenPawManifest();
+                if (stream == null) return;
+                using var doc = JsonDocument.Parse(stream);
                 foreach (var p in doc.RootElement.EnumerateObject())
                 {
                     var e = p.Value;
                     var a = new Anim { Folder = e.GetProperty("folder").GetString() ?? "", Frames = e.GetProperty("frames").GetInt32() };
+                    if (!Buddy.SafeName(a.Folder) || a.Frames < 1 || a.Frames > Buddy.MaxFramesPerAnim) throw new InvalidDataException("bad paw animation " + p.Name);
                     if (e.TryGetProperty("press_frame", out var pf)) a.PressFrame = pf.GetInt32();
                     if (e.TryGetProperty("release_frame", out var rf)) a.ReleaseFrame = rf.GetInt32();
                     if (e.TryGetProperty("text_area", out var ta))
@@ -115,7 +133,7 @@ namespace Assistail.Extras
             _y = screen.Top + screen.Height / 2 - (int)(BoopPadsY * _fh);   // the pads press at the centre of the screen
             _h = screen.Bottom - _y;                                // the arm reaches down to the screen's bottom edge
             Begin(text, hint, tag);
-            _print = _anims.ContainsKey("print") ? Decode(Uri("print", 0), _fw, _fh) : null;
+            _print = _anims.ContainsKey("print") ? Decode(_buddy, Uri("print", 0), _fw, _fh) : null;
             _printFaded = _print != null ? Faded(_print, 0.5) : null;
             _overlay = RenderBoopMessage();
             StartPrefetch(new[] { "boop" }, dropShown: true);
@@ -280,14 +298,14 @@ namespace Assistail.Extras
 
         // ================================================================== frames
 
-        private string Uri(string anim, int index) => $"pack://application:,,,/{Buddy}/{_anims[anim].Folder}/f_{index + 1:D4}.png";
+        private string Uri(string anim, int index) => $"{_anims[anim].Folder}/f_{index + 1:D4}.png";   // relative to the buddy
 
         private uint[] Frame(string anim, int index)
         {
             index = Math.Clamp(index, 0, _anims[anim].Frames - 1);
             string key = anim + "/" + index;
             if (_frames.TryGetValue(key, out var px)) return px;
-            px = Decode(Uri(anim, index), _fw, _fh);              // not decoded ahead yet: do it now
+            px = Decode(_buddy, Uri(anim, index), _fw, _fh);              // not decoded ahead yet: do it now
             _frames[key] = px;
             return px;
         }
@@ -302,6 +320,7 @@ namespace Assistail.Extras
             foreach (var a in anims)
                 for (int i = 0; i < _anims[a].Frames; i++) jobs.Add((a + "/" + i, Uri(a, i), seq++));
             int w = _fw, h = _fh;
+            var buddy = _buddy;
             _playhead = 0;
             System.Threading.Tasks.Task.Run(() =>
             {
@@ -310,7 +329,7 @@ namespace Assistail.Extras
                     while (!cts.IsCancellationRequested && s > _playhead + Lookahead) System.Threading.Thread.Sleep(15);
                     if (cts.IsCancellationRequested) return;
                     if (_frames.ContainsKey(key)) continue;
-                    try { _frames[key] = Decode(uri, w, h); }
+                    try { _frames[key] = Decode(buddy, uri, w, h); }
                     catch (Exception ex) { App.Log("Paw frame decode failed: " + ex.Message); return; }
                     if (dropShown)   // the boop only plays forwards: forget frames already shown
                         foreach (var k in _frames.Keys)
@@ -325,15 +344,18 @@ namespace Assistail.Extras
             _prefetch = null;
         }
 
-        private static uint[] Decode(string uri, int w, int h)
+        private static uint[] Decode(Buddy buddy, string relPath, int w, int h)
         {
             var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.UriSource = new Uri(uri);
-            bmp.DecodePixelWidth = w;
-            bmp.DecodePixelHeight = h;
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.EndInit();
+            using (var stream = buddy.OpenImage(relPath))
+            {
+                bmp.BeginInit();
+                bmp.StreamSource = stream;
+                bmp.DecodePixelWidth = w;
+                bmp.DecodePixelHeight = h;
+                bmp.CacheOption = BitmapCacheOption.OnLoad;   // decoded now, so the stream can close
+                bmp.EndInit();
+            }
             bmp.Freeze();
             var pbgra = new FormatConvertedBitmap(bmp, PixelFormats.Pbgra32, null, 0);
             pbgra.Freeze();
